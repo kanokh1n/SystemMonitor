@@ -6,6 +6,7 @@
   --border: #e3e3e8;
   --track: #ececf0;
   --hover: #f0f0f4;
+  --sidebar: #ececf0;
   --accent: #0a84ff;
   --ok: #30a46c;
   --warn: #f5a524;
@@ -22,6 +23,7 @@
     --border: #2e2e33;
     --track: #2c2c31;
     --hover: #26262a;
+    --sidebar: #1b1b1e;
   }
 }
 
@@ -38,7 +40,41 @@ html, body {
   cursor: default;
 }
 
-/* Заголовок окна: слева место под «светофор» macOS, за пустое место окно можно тащить. */
+body { display: flex; }
+
+/* Боковое меню: сверху место под «светофор» macOS, за пустое место окно можно тащить. */
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  padding: 52px 10px 12px;
+  background: var(--sidebar);
+  border-right: 1px solid var(--border);
+}
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 7px;
+}
+.tab:hover { background: var(--hover); }
+.tab.active { background: var(--accent); color: #fff; }
+.tab svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.tab span { flex: 1; }
+.tab small { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tab.active small { color: rgb(255 255 255 / 0.8); }
+
+.content { flex: 1; min-width: 0; }
+
 .titlebar {
   position: sticky;
   top: 0;
@@ -47,22 +83,12 @@ html, body {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 0 20px 0 86px;
+  padding: 0 20px;
   background: color-mix(in srgb, var(--bg) 85%, transparent);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
 }
-
-.tabs { display: flex; gap: 2px; background: var(--track); padding: 2px; border-radius: 8px; }
-.tab {
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  padding: 4px 14px;
-  border-radius: 6px;
-}
-.tab.active { background: var(--card); box-shadow: 0 1px 2px rgb(0 0 0 / 0.15); font-weight: 600; }
+.titlebar h1 { margin: 0; font-size: 15px; font-weight: 600; }
 
 .host { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -84,6 +110,9 @@ main { padding: 20px; }
   min-height: 150px;
 }
 .card.wide { grid-column: span 2; }
+.card.full { margin-top: 14px; min-height: 0; }
+.card.soon { border-style: dashed; background: transparent; min-height: 0; }
+.spark.tall { height: 110px; }
 @media (max-width: 620px) { .card.wide { grid-column: auto; } }
 
 .card h2 {

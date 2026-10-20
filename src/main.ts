@@ -14,6 +14,8 @@ const history = {
   mem: new History(),
   rx: new History(),
   tx: new History(),
+  diskRead: new History(),
+  diskWrite: new History(),
 };
 
 let snapshot: Snapshot | null = null;
@@ -27,6 +29,7 @@ document.querySelectorAll<HTMLButtonElement>(".tab").forEach((tab) => {
     activeTab = tab.dataset.tab!;
     document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t === tab));
     document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === activeTab));
+    $("section-title").textContent = tab.dataset.title!;
     render();
   });
 });
@@ -40,6 +43,8 @@ listen<Snapshot>("metrics", ({ payload }) => {
   history.mem.push(mem.total ? (mem.used / mem.total) * 100 : 0);
   history.rx.push(payload.network.rxPerSec);
   history.tx.push(payload.network.txPerSec);
+  history.diskRead.push(payload.diskIo.readPerSec);
+  history.diskWrite.push(payload.diskIo.writePerSec);
   render();
 });
 
@@ -51,8 +56,11 @@ listen<DockerSnapshot>("docker", ({ payload }) => {
 function render() {
   if (!snapshot) return;
   $("host").textContent = `${snapshot.system.hostName} · ${snapshot.cpu.brand}`;
+  updateBadges(snapshot);
   if (activeTab === "overview") renderOverview(snapshot);
   if (activeTab === "processes") renderProcesses(snapshot.processes);
+  if (activeTab === "disks") renderDisks(snapshot);
+  if (activeTab === "battery") renderBattery(snapshot);
   if (activeTab === "docker") renderDocker();
 }
 
@@ -114,26 +122,6 @@ function renderOverview(s: Snapshot) {
     { data: history.tx.values, color: COLORS.up },
   ]);
 
-  $("card-disk").innerHTML = `
-    <h2>Диски</h2>
-    ${s.disks
-      .map((d) => {
-        const used = d.total - d.available;
-        return `<div class="disk">
-          <div class="row"><b>${escape(d.mountPoint === "/" ? "Macintosh HD" : d.name)}</b>
-          <span class="muted">${bytes(d.available)} свободно</span></div>
-          ${bar(d.total ? used / d.total : 0)}
-          <div class="muted small">${bytes(used)} из ${bytes(d.total)} · ${escape(d.fileSystem)}</div>
-        </div>`;
-      })
-      .join("")}
-    <dl>
-      <dt>Чтение</dt><dd>${rate(s.diskIo.readPerSec)}</dd>
-      <dt>Запись</dt><dd>${rate(s.diskIo.writePerSec)}</dd>
-    </dl>`;
-
-  $("card-battery").innerHTML = renderBattery(s);
-
   $("card-system").innerHTML = `
     <h2>Система</h2>
     <dl>
@@ -156,8 +144,39 @@ function renderOverview(s: Snapshot) {
         )
         .join("")}
     </table>`;
+}
 
-  $("card-docker").innerHTML = renderDockerSummary();
+// ---------- Диски ----------
+
+function renderDisks(s: Snapshot) {
+  $("disks-volumes").innerHTML = s.disks
+    .map((d) => {
+      const used = d.total - d.available;
+      return `<article class="card">
+        <h2>${escape(d.mountPoint === "/" ? "Macintosh HD" : d.name)}
+          <span class="muted small">${d.removable ? "внешний" : "встроенный"} · ${escape(d.fileSystem)}</span></h2>
+        <div class="big">${bytes(d.available)}</div>
+        <div class="muted">свободно из ${bytes(d.total)}</div>
+        ${bar(d.total ? used / d.total : 0)}
+        <dl>
+          <dt>Занято</dt><dd>${bytes(used)} · ${percent(d.total ? (used / d.total) * 100 : 0)}</dd>
+          <dt>Путь</dt><dd>${escape(d.mountPoint)}</dd>
+        </dl>
+      </article>`;
+    })
+    .join("");
+
+  $("disks-io").innerHTML = `
+    <h2>Активность диска</h2>
+    <div class="pair">
+      <div><span class="dot" style="background:${COLORS.down}"></span>Чтение <b>${rate(s.diskIo.readPerSec)}</b></div>
+      <div><span class="dot" style="background:${COLORS.up}"></span>Запись <b>${rate(s.diskIo.writePerSec)}</b></div>
+    </div>
+    <canvas class="spark tall" id="spark-disk"></canvas>`;
+  sparkline($("spark-disk"), [
+    { data: history.diskRead.values, color: COLORS.down },
+    { data: history.diskWrite.values, color: COLORS.up },
+  ]);
 }
 
 function hottest(s: Snapshot) {
@@ -175,25 +194,30 @@ const BATTERY_STATE: Record<string, string> = {
   unknown: "Подключено к сети",
 };
 
+// ---------- Батарея ----------
+
 function renderBattery(s: Snapshot) {
   const b = s.battery;
-  if (!b) return `<h2>Батарея</h2><p class="muted">Батарея не найдена</p>`;
+  if (!b) {
+    $("battery-main").innerHTML = `<h2>Этот Mac</h2><p class="muted">Батарея не найдена</p>`;
+    return;
+  }
   const time =
     b.state === "discharging" && b.minutesToEmpty
       ? `<dt>Осталось</dt><dd>${minutes(b.minutesToEmpty)}</dd>`
       : b.state === "charging" && b.minutesToFull
-        ? `<dt>До полной</dt><dd>${minutes(b.minutesToFull)}</dd>`
+        ? `<dt>До полной зарядки</dt><dd>${minutes(b.minutesToFull)}</dd>`
         : "";
   const color = b.percent < 15 ? "var(--crit)" : b.percent < 30 ? "var(--warn)" : "var(--ok)";
-  return `
-    <h2>Батарея</h2>
+  $("battery-main").innerHTML = `
+    <h2>Этот Mac</h2>
     <div class="big" style="color:${color}">${percent(b.percent)}</div>
     <div class="muted">${BATTERY_STATE[b.state]}${b.powerWatts > 0.1 ? ` · ${b.powerWatts.toFixed(1)} Вт` : ""}</div>
     ${bar(b.percent / 100, color)}
     <dl>
       ${time}
-      <dt>Здоровье</dt><dd>${percent(b.healthPercent)}</dd>
-      <dt>Циклов</dt><dd>${b.cycleCount ?? "?"}</dd>
+      <dt>Здоровье батареи</dt><dd>${percent(b.healthPercent)}</dd>
+      <dt>Циклов зарядки</dt><dd>${b.cycleCount ?? "?"}</dd>
     </dl>`;
 }
 
@@ -293,25 +317,6 @@ function dockerUnavailable() {
   </div>`;
 }
 
-function renderDockerSummary() {
-  if (!docker) return `<h2>Docker</h2><p class="muted">Подключаюсь…</p>`;
-  if (!docker.available) return `<h2>Docker</h2>${dockerUnavailable()}`;
-  const running = docker.containers.filter((c) => c.state === "running");
-  return `
-    <h2>Docker · ${running.length} из ${docker.containers.length} запущено
-      <button class="link" data-goto="docker">управление →</button></h2>
-    <table class="table compact">
-      ${running
-        .slice(0, 6)
-        .map(
-          (c) => `<tr><td class="name">${escape(c.name)} <span class="muted small">${escape(c.image)}</span></td>
-          <td class="num">${c.cpuPercent != null ? percent(c.cpuPercent, 1) : "—"}</td>
-          <td class="num">${c.memoryUsed != null ? bytes(c.memoryUsed) : "—"}</td></tr>`,
-        )
-        .join("") || `<tr><td class="muted">Нет запущенных контейнеров</td></tr>`}
-    </table>`;
-}
-
 const busy = new Set<string>(); // контейнеры, над которыми сейчас идёт действие
 
 function containerRow(c: Container) {
@@ -346,7 +351,9 @@ function renderDocker() {
   if (!docker.available) return (body.innerHTML = dockerUnavailable());
   if (docker.containers.length === 0)
     return (body.innerHTML = `<div class="empty"><b>Контейнеров нет</b></div>`);
-  body.innerHTML = `<div class="table-wrap"><table class="table">
+  const running = docker.containers.filter((c) => c.state === "running").length;
+  body.innerHTML = `<p class="muted">${running} из ${docker.containers.length} контейнеров запущено</p>
+  <div class="table-wrap"><table class="table">
     <thead><tr><th>Контейнер</th><th>Статус</th><th>Порты</th><th class="num">CPU</th><th class="num">Память</th><th></th></tr></thead>
     <tbody>${docker.containers.map(containerRow).join("")}</tbody>
   </table></div>`;
@@ -386,6 +393,19 @@ async function openLogs(id: string, name: string) {
   }
 }
 $("logs-close").addEventListener("click", () => $<HTMLDialogElement>("logs").close());
+
+// ---------- Подписи в боковом меню ----------
+
+function updateBadges(s: Snapshot) {
+  const mem = s.memory.total ? (s.memory.used / s.memory.total) * 100 : 0;
+  $("badge-overview").textContent = `${percent(s.cpu.usage)} · ${percent(mem)}`;
+  const root = s.disks.find((d) => d.mountPoint === "/");
+  $("badge-disks").textContent = root ? `${bytes(root.available, 0)}` : "";
+  $("badge-battery").textContent = s.battery ? percent(s.battery.percent) : "";
+  $("badge-docker").textContent = docker?.available
+    ? String(docker.containers.filter((c) => c.state === "running").length)
+    : "";
+}
 
 // ---------- Уведомления внизу экрана ----------
 
