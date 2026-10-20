@@ -208,6 +208,7 @@ input[type="search"] {
 .table tbody tr:hover { background: var(--hover); }
 .table .num { text-align: right; white-space: nowrap; }
 .table .name { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.table .about { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
 .table .actions { text-align: right; white-space: nowrap; width: 1%; }
 .table .wide-col { width: 30%; }
 .table .wide-col .bar { margin: 0; }

@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 
 import { History, sparkline } from "./chart";
 import { bytes, duration, escape, minutes, percent, rate } from "./format";
+import { describe } from "./known";
 import type { Container, DockerSnapshot, NetDetails, Process, Snapshot } from "./types";
 
 const COLORS = {
@@ -139,6 +140,13 @@ function killButton(pid: number) {
   return `<button class="btn small ${armed ? "danger" : ""}" data-kill="${pid}">${armed ? "Точно?" : "Завершить"}</button>`;
 }
 
+/** Имя процесса, PID и, если знаем, пояснение, что это такое. */
+function procName(name: string, pid: number, app?: string | null) {
+  const about = describe(name, app);
+  return `<td class="name" title="${escape(name)}${about ? ` — ${escape(about)}` : ""}">${escape(name)}
+    <span class="muted small">${pid}</span>${about ? `<div class="about">${escape(about)}</div>` : ""}</td>`;
+}
+
 const memPercent = (s: Snapshot) => (s.memory.total ? (s.memory.used / s.memory.total) * 100 : 0);
 
 // ---------- Обзор ----------
@@ -235,7 +243,7 @@ function renderMemory(s: Snapshot) {
     <tbody>${top
       .map(
         (p) => `<tr>
-        <td class="name">${escape(p.name)} <span class="muted small">${p.pid}</span></td>
+        ${procName(p.name, p.pid, p.app)}
         <td class="wide-col">${bar(p.memory / max, COLORS.mem)}</td>
         <td class="num"><b>${bytes(p.memory)}</b></td>
         <td class="num">${percent((p.memory / mem.total) * 100, 1)}</td>
@@ -247,6 +255,9 @@ function renderMemory(s: Snapshot) {
 }
 
 // ---------- Сеть ----------
+
+// Приложение, которому принадлежит процесс, знает только список процессов.
+const appByPid = (pid: number) => snapshot?.processes.find((p) => p.pid === pid)?.app ?? null;
 
 function renderNetwork(s: Snapshot) {
   const n = s.network;
@@ -292,7 +303,7 @@ function renderNetwork(s: Snapshot) {
     ? `<thead><tr><th>Программа</th><th class="num">Соединений</th><th class="num">Разных серверов</th></tr></thead>
        <tbody>${apps
          .map(
-           (a) => `<tr><td class="name">${escape(a.process)} <span class="muted small">${a.pid}</span></td>
+           (a) => `<tr>${procName(a.process, a.pid, appByPid(a.pid))}
            <td class="num">${a.connections}</td><td class="num">${a.remoteHosts}</td></tr>`,
          )
          .join("")}</tbody>`
@@ -305,7 +316,7 @@ function renderNetwork(s: Snapshot) {
          .map(
            (p) => `<tr><td class="num"><b>${p.port}</b></td>
            <td class="mono small">${escape(p.address)}${p.address === "*" ? ' <span class="pill warn">доступен из сети</span>' : ""}</td>
-           <td class="name">${escape(p.process)} <span class="muted small">${p.pid}</span></td>
+           ${procName(p.process, p.pid, appByPid(p.pid))}
            <td class="actions">${killButton(p.pid)}</td></tr>`,
          )
          .join("")}</tbody>`
@@ -426,7 +437,7 @@ function renderProcesses(all: Process[]) {
     .slice(0, 200)
     .map(
       (p) => `<tr>
-        <td class="name">${escape(p.name)} <span class="muted small">${p.pid}</span></td>
+        ${procName(p.name, p.pid, p.app)}
         <td class="num">${percent(p.cpu, 1)}</td>
         <td class="num">${bytes(p.memory)}</td>
         <td class="num">${p.readPerSec ? rate(p.readPerSec) : "—"}</td>

@@ -189,6 +189,8 @@ pub struct TempInfo {
 pub struct ProcessInfo {
     pub pid: u32,
     pub name: String,
+    /// Приложение, внутри которого лежит программа (`/Applications/Slack.app/...` → `Slack`).
+    pub app: Option<String>,
     pub cpu: f32,
     pub memory: u64,
     pub read_per_sec: u64,
@@ -346,6 +348,7 @@ impl Collector {
                 ProcessInfo {
                     pid: p.pid().as_u32(),
                     name: p.name().to_string_lossy().to_string(),
+                    app: p.exe().and_then(app_name),
                     cpu: p.cpu_usage(),
                     memory: p.memory(),
                     read_per_sec: per_sec(io.read_bytes),
@@ -401,6 +404,15 @@ impl Collector {
     }
 }
 
+/// Ищет в пути самый внешний `*.app`: у помощников вроде
+/// `Google Chrome.app/.../Google Chrome Helper.app` приложением считается Chrome.
+fn app_name(path: &std::path::Path) -> Option<String> {
+    path.components()
+        .filter_map(|c| c.as_os_str().to_str())
+        .find_map(|c| c.strip_suffix(".app"))
+        .map(str::to_string)
+}
+
 /// Запускает фоновый поток сбора метрик.
 pub fn spawn(app: AppHandle) {
     thread::spawn(move || {
@@ -444,6 +456,15 @@ mod tests {
         assert!(s.cpu.cores > 0);
         assert!(!s.processes.is_empty());
         assert!(serde_json::to_string(&s).is_ok());
+    }
+
+    #[test]
+    fn finds_outer_app() {
+        let p = std::path::Path::new(
+            "/Applications/Google Chrome.app/Contents/Frameworks/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/x",
+        );
+        assert_eq!(app_name(p).as_deref(), Some("Google Chrome"));
+        assert_eq!(app_name(std::path::Path::new("/usr/libexec/logd")), None);
     }
 
     #[test]

@@ -57,6 +57,7 @@ export interface Snapshot {
 export interface Process {
   pid: number;
   name: string;
+  app: string | null;
   cpu: number;
   memory: number;
   readPerSec: number;

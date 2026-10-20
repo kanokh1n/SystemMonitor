@@ -165,7 +165,7 @@ fn sockets_summary(sockets: &[Socket]) -> (Vec<ListeningPort>, Vec<AppConnection
 fn collect() -> NetDetails {
     let (gateway, default_interface) = default_route();
     // Без прав администратора lsof видит только процессы текущего пользователя.
-    let sockets = run("lsof", &["-nP", "-iTCP", "-F", "pcnT"])
+    let sockets = run("lsof", &["+c", "0", "-nP", "-iTCP", "-F", "pcnT"])
         .map(|t| parse_lsof(&t))
         .unwrap_or_default();
     let (listening, connections) = sockets_summary(&sockets);
