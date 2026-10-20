@@ -3,9 +3,17 @@ import { listen } from "@tauri-apps/api/event";
 
 import { History, sparkline } from "./chart";
 import { bytes, duration, escape, minutes, percent, rate } from "./format";
-import type { Container, DockerSnapshot, Process, Snapshot } from "./types";
+import type { Container, DockerSnapshot, NetDetails, Process, Snapshot } from "./types";
 
-const COLORS = { cpu: "#14b8a6", mem: "#8b5cf6", down: "#3b82f6", up: "#f59e0b" };
+const COLORS = {
+  cpu: "#14b8a6",
+  mem: "#8b5cf6",
+  down: "#3b82f6",
+  up: "#f59e0b",
+  wired: "#f43f5e",
+  compressed: "#f59e0b",
+  cached: "#3b82f6",
+};
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -20,18 +28,49 @@ const history = {
 
 let snapshot: Snapshot | null = null;
 let docker: DockerSnapshot | null = null;
-let activeTab = "overview";
+let net: NetDetails | null = null;
+let publicIp: string | null = null;
 
-// ---------- Вкладки ----------
+// ---------- Боковое меню и прокрутка ----------
 
-document.querySelectorAll<HTMLButtonElement>(".tab").forEach((tab) => {
-  tab.addEventListener("click", () => {
-    activeTab = tab.dataset.tab!;
-    document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t === tab));
-    document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === activeTab));
-    $("section-title").textContent = tab.dataset.title!;
-    render();
-  });
+const SECTIONS: [id: string, title: string, icon: string][] = [
+  ["overview", "Обзор", '<path d="M3 13h4l3-8 4 14 3-6h4"/>'],
+  ["cpu", "Процессор", '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>'],
+  ["memory", "Память", '<rect x="3" y="7" width="18" height="10" rx="1.5"/><path d="M7 7v10M11 7v10M15 7v10M6 20v-3M18 20v-3"/>'],
+  ["network", "Сеть", '<path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1"/>'],
+  ["disks", "Диски", '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>'],
+  ["battery", "Батарея", '<rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2M6 10v4M10 10v4"/>'],
+  ["processes", "Процессы", '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h8"/>'],
+  ["docker", "Docker", '<path d="M3 12h16a4 4 0 0 1-4 5H8a5 5 0 0 1-5-5zM5 9h3v3H5zM8 9h3v3H8zM11 9h3v3h-3zM8 6h3v3H8z"/>'],
+];
+
+$("nav").innerHTML = SECTIONS.map(
+  ([id, title, icon]) => `<button class="tab" data-goto="${id}">
+    <svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg><span>${title}</span><small id="badge-${id}"></small>
+  </button>`,
+).join("");
+
+const content = $("content");
+
+function scrollToSection(id: string) {
+  const target = $(id);
+  content.scrollTo({ top: id === "overview" ? 0 : target.offsetTop - 64, behavior: "smooth" });
+}
+
+// Подсвечиваем в меню раздел, который сейчас наверху экрана.
+function updateActiveSection() {
+  const atBottom = content.scrollTop + content.clientHeight >= content.scrollHeight - 4;
+  let current = SECTIONS[0][0];
+  for (const [id] of SECTIONS) if ($(id).offsetTop - 120 <= content.scrollTop) current = id;
+  if (atBottom) current = SECTIONS[SECTIONS.length - 1][0];
+  document.querySelectorAll<HTMLElement>(".tab").forEach((t) => t.classList.toggle("active", t.dataset.goto === current));
+  $("section-title").textContent = SECTIONS.find(([id]) => id === current)![1];
+}
+content.addEventListener("scroll", updateActiveSection, { passive: true });
+
+document.addEventListener("click", (e) => {
+  const goto = (e.target as HTMLElement).closest<HTMLElement>("[data-goto]");
+  if (goto) scrollToSection(goto.dataset.goto!);
 });
 
 // ---------- Подписка на данные из Rust ----------
@@ -50,21 +89,29 @@ listen<Snapshot>("metrics", ({ payload }) => {
 
 listen<DockerSnapshot>("docker", ({ payload }) => {
   docker = payload;
-  if (activeTab !== "processes") render();
+  renderDocker();
+});
+
+listen<NetDetails>("netinfo", ({ payload }) => {
+  net = payload;
 });
 
 function render() {
-  if (!snapshot) return;
-  $("host").textContent = `${snapshot.system.hostName} · ${snapshot.cpu.brand}`;
-  updateBadges(snapshot);
-  if (activeTab === "overview") renderOverview(snapshot);
-  if (activeTab === "processes") renderProcesses(snapshot.processes);
-  if (activeTab === "disks") renderDisks(snapshot);
-  if (activeTab === "battery") renderBattery(snapshot);
-  if (activeTab === "docker") renderDocker();
+  const s = snapshot;
+  if (!s) return;
+  $("host").textContent = `${s.system.hostName} · ${s.cpu.brand}`;
+  renderOverview(s);
+  renderCpu(s);
+  renderMemory(s);
+  renderNetwork(s);
+  renderDisks(s);
+  renderBattery(s);
+  renderProcesses(s.processes);
+  updateBadges(s);
+  updateActiveSection();
 }
 
-// ---------- Обзор ----------
+// ---------- Общие кусочки разметки ----------
 
 function bar(fraction: number, color?: string) {
   const pct = Math.max(0, Math.min(1, fraction)) * 100;
@@ -74,157 +121,270 @@ function bar(fraction: number, color?: string) {
   return `<div class="bar"><div class="fill ${level}" style="${background}width:${pct}%"></div></div>`;
 }
 
+/** Строки «название — значение», как в Системных настройках. */
+function rows(items: [string, string][]) {
+  return `<dl class="rows">${items.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>`;
+}
+
+function hero(value: string, label: string, color?: string) {
+  return `<div class="hero"><div class="big" ${color ? `style="color:${color}"` : ""}>${value}</div>
+    <div class="muted">${label}</div></div>`;
+}
+
+const legend = (color: string, label: string, value: string) =>
+  `<span class="legend"><span class="dot" style="background:${color}"></span>${label} <b>${value}</b></span>`;
+
+function killButton(pid: number) {
+  const armed = armedPid === pid;
+  return `<button class="btn small ${armed ? "danger" : ""}" data-kill="${pid}">${armed ? "Точно?" : "Завершить"}</button>`;
+}
+
+const memPercent = (s: Snapshot) => (s.memory.total ? (s.memory.used / s.memory.total) * 100 : 0);
+
+// ---------- Обзор ----------
+
 function renderOverview(s: Snapshot) {
-  const { cpu, memory: mem, network: net } = s;
+  const root = s.disks.find((d) => d.mountPoint === "/");
+  const running = docker?.available ? docker.containers.filter((c) => c.state === "running").length : null;
+  const tiles: [string, string, string, string?][] = [
+    ["cpu", "Процессор", percent(s.cpu.usage), COLORS.cpu],
+    ["memory", "Память", percent(memPercent(s)), COLORS.mem],
+    ["network", "Сеть", `↓ ${rate(s.network.rxPerSec)}`, COLORS.down],
+    ["disks", "Свободно", root ? bytes(root.available, 0) : "—"],
+    ["battery", "Батарея", s.battery ? percent(s.battery.percent) : "—"],
+    ["docker", "Контейнеры", running == null ? "—" : String(running)],
+  ];
+  $("overview-strip").innerHTML = tiles
+    .map(
+      ([id, label, value, color]) => `<button class="tile" data-goto="${id}">
+        <span class="muted">${label}</span><b ${color ? `style="color:${color}"` : ""}>${value}</b></button>`,
+    )
+    .join("");
+}
 
-  $("card-cpu").innerHTML = `
-    <h2>Процессор</h2>
-    <div class="big" style="color:${COLORS.cpu}">${percent(cpu.usage)}</div>
-    <canvas class="spark" id="spark-cpu"></canvas>
+// ---------- Процессор ----------
+
+function renderCpu(s: Snapshot) {
+  const { cpu } = s;
+  const temps = [...s.temperatures].sort((a, b) => b.celsius - a.celsius).slice(0, 4);
+  $("cpu-body").innerHTML = `
+    <div class="panel-head">
+      ${hero(percent(cpu.usage), "общая загрузка", COLORS.cpu)}
+      <canvas class="spark" id="spark-cpu"></canvas>
+    </div>
     <div class="cores">${cpu.perCore
-      .map((c) => `<span title="${percent(c)}"><i style="height:${Math.min(100, c)}%"></i></span>`)
+      .map((c, i) => `<span title="Ядро ${i + 1}: ${percent(c)}"><i style="height:${Math.min(100, c)}%"></i></span>`)
       .join("")}</div>
-    <dl>
-      <dt>Ядра</dt><dd>${cpu.physicalCores ?? "?"} физ. · ${cpu.cores} лог.</dd>
-      <dt>Нагрузка (1/5/15 мин)</dt><dd>${cpu.loadAvg.map((l) => l.toFixed(2)).join(" · ")}</dd>
-      ${hottest(s)}
-    </dl>`;
+    ${rows([
+      ["Модель", escape(cpu.brand)],
+      ["Ядра", `${cpu.physicalCores ?? "?"} физических · ${cpu.cores} потоков`],
+      ["Средняя нагрузка за 1 / 5 / 15 мин", cpu.loadAvg.map((l) => l.toFixed(2)).join(" · ")],
+      ...temps.map((t): [string, string] => [`Датчик ${escape(t.label)}`, `${t.celsius.toFixed(0)} °C`]),
+      ["Без перезагрузки", duration(s.system.uptimeSecs)],
+      ["Система", `${escape(s.system.os)} · ${escape(s.system.arch)}`],
+    ])}`;
   sparkline($("spark-cpu"), [{ data: history.cpu.values, color: COLORS.cpu }], 100);
+}
 
-  const memFrac = mem.total ? mem.used / mem.total : 0;
-  $("card-mem").innerHTML = `
-    <h2>Память</h2>
-    <div class="big" style="color:${COLORS.mem}">${percent(memFrac * 100)}</div>
-    <canvas class="spark" id="spark-mem"></canvas>
-    ${bar(memFrac, COLORS.mem)}
-    <dl>
-      <dt>Занято</dt><dd>${bytes(mem.used)} из ${bytes(mem.total)}</dd>
-      <dt>Доступно</dt><dd>${bytes(mem.available)}</dd>
-      <dt>Swap</dt><dd>${bytes(mem.swapUsed)} из ${bytes(mem.swapTotal)}</dd>
-    </dl>`;
+// ---------- Память ----------
+
+const PRESSURE: Record<string, [string, string]> = {
+  normal: ["в норме", "var(--ok)"],
+  warning: ["повышенное", "var(--warn)"],
+  critical: ["критическое", "var(--crit)"],
+};
+
+function renderMemory(s: Snapshot) {
+  const mem = s.memory;
+  const b = mem.breakdown;
+  const pressure = b?.pressureLevel ? PRESSURE[b.pressureLevel] : null;
+
+  // Разбивка на полосе: программы, wired, сжатая, кэш, остальное свободно.
+  const parts: [string, string, number][] = b
+    ? [
+        ["Программы", COLORS.mem, b.app],
+        ["Wired (ядро)", COLORS.wired, b.wired],
+        ["Сжатая", COLORS.compressed, b.compressed],
+        ["Кэш файлов", COLORS.cached, b.cached],
+      ]
+    : [["Занято", COLORS.mem, mem.used]];
+  const stack = parts
+    .map(([label, color, v]) => `<i title="${label}: ${bytes(v)}" style="background:${color};width:${(v / mem.total) * 100}%"></i>`)
+    .join("");
+
+  $("memory-body").innerHTML = `
+    <div class="panel-head">
+      ${hero(percent(memPercent(s)), `занято ${bytes(mem.used)} из ${bytes(mem.total)}`, COLORS.mem)}
+      <canvas class="spark" id="spark-mem"></canvas>
+    </div>
+    <div class="stack">${stack}</div>
+    <div class="legends">${parts.map(([l, c, v]) => legend(c, l, bytes(v))).join("")}</div>
+    ${rows([
+      ...(pressure
+        ? [["Давление памяти", `<span style="color:${pressure[1]}">${pressure[0]}</span>${b?.pressure != null ? ` · ${b.pressure}%` : ""}`] as [string, string]]
+        : []),
+      ["Доступно программам", bytes(mem.available)],
+      ["Swap (файл подкачки)", `${bytes(mem.swapUsed)} из ${bytes(mem.swapTotal)}`],
+    ])}`;
   sparkline($("spark-mem"), [{ data: history.mem.values, color: COLORS.mem }], 100);
 
-  $("card-net").innerHTML = `
-    <h2>Сеть</h2>
-    <div class="pair">
-      <div><span class="dot" style="background:${COLORS.down}"></span>↓ <b>${rate(net.rxPerSec)}</b></div>
-      <div><span class="dot" style="background:${COLORS.up}"></span>↑ <b>${rate(net.txPerSec)}</b></div>
+  const top = [...s.processes].sort((a, b) => b.memory - a.memory).slice(0, 25);
+  const max = top[0]?.memory || 1;
+  $("memory-procs").innerHTML = `
+    <thead><tr><th>Процесс</th><th class="wide-col"></th><th class="num">Память</th><th class="num">% RAM</th><th class="num">CPU</th><th></th></tr></thead>
+    <tbody>${top
+      .map(
+        (p) => `<tr>
+        <td class="name">${escape(p.name)} <span class="muted small">${p.pid}</span></td>
+        <td class="wide-col">${bar(p.memory / max, COLORS.mem)}</td>
+        <td class="num"><b>${bytes(p.memory)}</b></td>
+        <td class="num">${percent((p.memory / mem.total) * 100, 1)}</td>
+        <td class="num">${percent(p.cpu, 1)}</td>
+        <td class="actions">${killButton(p.pid)}</td>
+      </tr>`,
+      )
+      .join("")}</tbody>`;
+}
+
+// ---------- Сеть ----------
+
+function renderNetwork(s: Snapshot) {
+  const n = s.network;
+  $("network-body").innerHTML = `
+    <div class="panel-head">
+      <div class="hero">
+        <div class="big" style="color:${COLORS.down}">↓ ${rate(n.rxPerSec)}</div>
+        <div class="big small-big" style="color:${COLORS.up}">↑ ${rate(n.txPerSec)}</div>
+      </div>
+      <canvas class="spark" id="spark-net"></canvas>
     </div>
-    <canvas class="spark" id="spark-net"></canvas>
-    <dl>
-      ${net.interfaces
-        .map((i) => `<dt>${escape(i.name)}</dt><dd>${i.ips.map(escape).join(", ")}</dd>`)
-        .join("")}
-      <dt>Всего с загрузки</dt><dd>↓ ${bytes(net.rxTotal)} · ↑ ${bytes(net.txTotal)}</dd>
-    </dl>`;
+    ${rows([
+      ["Основной интерфейс", escape(net?.defaultInterface ?? "—")],
+      ["Шлюз (роутер)", escape(net?.gateway ?? "—")],
+      ["DNS‑серверы", net?.dns.length ? net.dns.map(escape).join(", ") : "—"],
+      ["Внешний IP", publicIp ? escape(publicIp) : `<button class="link" id="public-ip">узнать</button>`],
+      ["Получено с загрузки", bytes(n.rxTotal)],
+      ["Отправлено с загрузки", bytes(n.txTotal)],
+    ])}`;
   sparkline($("spark-net"), [
     { data: history.rx.values, color: COLORS.down },
     { data: history.tx.values, color: COLORS.up },
   ]);
 
-  $("card-system").innerHTML = `
-    <h2>Система</h2>
-    <dl>
-      <dt>Компьютер</dt><dd>${escape(s.system.hostName)}</dd>
-      <dt>ОС</dt><dd>${escape(s.system.os)}</dd>
-      <dt>Ядро</dt><dd>Darwin ${escape(s.system.kernel)}</dd>
-      <dt>Архитектура</dt><dd>${escape(s.system.arch)}</dd>
-      <dt>Без перезагрузки</dt><dd>${duration(s.system.uptimeSecs)}</dd>
-      <dt>Процессов</dt><dd>${s.processes.length}</dd>
-    </dl>`;
+  $("network-ifaces").innerHTML = `
+    <thead><tr><th>Интерфейс</th><th>IPv4</th><th>MAC</th><th class="num">↓</th><th class="num">↑</th><th class="num">Всего ↓ / ↑</th></tr></thead>
+    <tbody>${n.interfaces
+      .map(
+        (i) => `<tr>
+        <td class="name"><b>${escape(i.name)}</b>${i.name === net?.defaultInterface ? ' <span class="pill">основной</span>' : ""}
+          ${i.ipv6.length ? `<div class="muted small" title="${i.ipv6.map(escape).join("\n")}">IPv6: ${i.ipv6.length}</div>` : ""}</td>
+        <td>${i.ipv4.map(escape).join("<br>") || '<span class="muted">—</span>'}</td>
+        <td class="mono small">${escape(i.mac)}</td>
+        <td class="num">${rate(i.rxPerSec)}</td>
+        <td class="num">${rate(i.txPerSec)}</td>
+        <td class="num muted">${bytes(i.rxTotal)} / ${bytes(i.txTotal)}</td>
+      </tr>`,
+      )
+      .join("")}</tbody>`;
 
-  const top = [...s.processes].sort((a, b) => b.cpu - a.cpu).slice(0, 6);
-  $("card-top").innerHTML = `
-    <h2>Больше всего грузят CPU <button class="link" data-goto="processes">все процессы →</button></h2>
-    <table class="table compact">
-      ${top
-        .map(
-          (p) => `<tr><td class="name">${escape(p.name)}</td>
-          <td class="num">${percent(p.cpu, 1)}</td><td class="num">${bytes(p.memory)}</td></tr>`,
-        )
-        .join("")}
-    </table>`;
+  const apps = net?.connections ?? [];
+  $("network-apps").innerHTML = apps.length
+    ? `<thead><tr><th>Программа</th><th class="num">Соединений</th><th class="num">Разных серверов</th></tr></thead>
+       <tbody>${apps
+         .map(
+           (a) => `<tr><td class="name">${escape(a.process)} <span class="muted small">${a.pid}</span></td>
+           <td class="num">${a.connections}</td><td class="num">${a.remoteHosts}</td></tr>`,
+         )
+         .join("")}</tbody>`
+    : `<tbody><tr><td class="muted">${net ? "Нет активных соединений" : "Собираю данные…"}</td></tr></tbody>`;
+
+  const ports = net?.listening ?? [];
+  $("network-ports").innerHTML = ports.length
+    ? `<thead><tr><th class="num">Порт</th><th>Адрес</th><th>Программа</th><th></th></tr></thead>
+       <tbody>${ports
+         .map(
+           (p) => `<tr><td class="num"><b>${p.port}</b></td>
+           <td class="mono small">${escape(p.address)}${p.address === "*" ? ' <span class="pill warn">доступен из сети</span>' : ""}</td>
+           <td class="name">${escape(p.process)} <span class="muted small">${p.pid}</span></td>
+           <td class="actions">${killButton(p.pid)}</td></tr>`,
+         )
+         .join("")}</tbody>`
+    : `<tbody><tr><td class="muted">${net ? "Ни одна программа не слушает порты" : "Собираю данные…"}</td></tr></tbody>`;
 }
+
+content.addEventListener("click", async (e) => {
+  if ((e.target as HTMLElement).id !== "public-ip") return;
+  try {
+    publicIp = await invoke<string>("public_ip");
+  } catch (err) {
+    toast(String(err), true);
+  }
+  render();
+});
 
 // ---------- Диски ----------
 
 function renderDisks(s: Snapshot) {
-  $("disks-volumes").innerHTML = s.disks
+  const volumes = s.disks
     .map((d) => {
       const used = d.total - d.available;
-      return `<article class="card">
-        <h2>${escape(d.mountPoint === "/" ? "Macintosh HD" : d.name)}
-          <span class="muted small">${d.removable ? "внешний" : "встроенный"} · ${escape(d.fileSystem)}</span></h2>
-        <div class="big">${bytes(d.available)}</div>
-        <div class="muted">свободно из ${bytes(d.total)}</div>
+      return `<div class="volume">
+        <div class="row"><b>${escape(d.mountPoint === "/" ? "Macintosh HD" : d.name)}</b>
+          <span class="muted small">${d.removable ? "внешний" : "встроенный"} · ${escape(d.fileSystem)} · ${escape(d.mountPoint)}</span>
+          <span class="spacer"></span><span><b>${bytes(d.available)}</b> <span class="muted">свободно из ${bytes(d.total)}</span></span></div>
         ${bar(d.total ? used / d.total : 0)}
-        <dl>
-          <dt>Занято</dt><dd>${bytes(used)} · ${percent(d.total ? (used / d.total) * 100 : 0)}</dd>
-          <dt>Путь</dt><dd>${escape(d.mountPoint)}</dd>
-        </dl>
-      </article>`;
+      </div>`;
     })
     .join("");
-
-  $("disks-io").innerHTML = `
-    <h2>Активность диска</h2>
-    <div class="pair">
-      <div><span class="dot" style="background:${COLORS.down}"></span>Чтение <b>${rate(s.diskIo.readPerSec)}</b></div>
-      <div><span class="dot" style="background:${COLORS.up}"></span>Запись <b>${rate(s.diskIo.writePerSec)}</b></div>
-    </div>
-    <canvas class="spark tall" id="spark-disk"></canvas>`;
+  $("disks-body").innerHTML = `
+    ${volumes}
+    <div class="panel-head">
+      <div class="hero">
+        ${legend(COLORS.down, "Чтение", rate(s.diskIo.readPerSec))}
+        ${legend(COLORS.up, "Запись", rate(s.diskIo.writePerSec))}
+      </div>
+      <canvas class="spark" id="spark-disk"></canvas>
+    </div>`;
   sparkline($("spark-disk"), [
     { data: history.diskRead.values, color: COLORS.down },
     { data: history.diskWrite.values, color: COLORS.up },
   ]);
 }
 
-function hottest(s: Snapshot) {
-  if (s.temperatures.length === 0) return "";
-  const max = s.temperatures.reduce((a, b) => (b.celsius > a.celsius ? b : a));
-  return `<dt>Самый горячий датчик</dt><dd title="${escape(max.label)}">${max.celsius.toFixed(0)} °C</dd>`;
-}
+// ---------- Батарея ----------
 
 const BATTERY_STATE: Record<string, string> = {
   charging: "Заряжается",
-  discharging: "От батареи",
+  discharging: "Работает от батареи",
   full: "Заряжена",
   empty: "Разряжена",
   paused: "Зарядка на паузе",
   unknown: "Подключено к сети",
 };
 
-// ---------- Батарея ----------
-
 function renderBattery(s: Snapshot) {
   const b = s.battery;
   if (!b) {
-    $("battery-main").innerHTML = `<h2>Этот Mac</h2><p class="muted">Батарея не найдена</p>`;
+    $("battery-body").innerHTML = `<p class="muted">Батарея не найдена</p>`;
     return;
   }
-  const time =
-    b.state === "discharging" && b.minutesToEmpty
-      ? `<dt>Осталось</dt><dd>${minutes(b.minutesToEmpty)}</dd>`
-      : b.state === "charging" && b.minutesToFull
-        ? `<dt>До полной зарядки</dt><dd>${minutes(b.minutesToFull)}</dd>`
-        : "";
   const color = b.percent < 15 ? "var(--crit)" : b.percent < 30 ? "var(--warn)" : "var(--ok)";
-  $("battery-main").innerHTML = `
-    <h2>Этот Mac</h2>
-    <div class="big" style="color:${color}">${percent(b.percent)}</div>
-    <div class="muted">${BATTERY_STATE[b.state]}${b.powerWatts > 0.1 ? ` · ${b.powerWatts.toFixed(1)} Вт` : ""}</div>
+  const time: [string, string][] =
+    b.state === "discharging" && b.minutesToEmpty
+      ? [["Осталось", minutes(b.minutesToEmpty)]]
+      : b.state === "charging" && b.minutesToFull
+        ? [["До полной зарядки", minutes(b.minutesToFull)]]
+        : [];
+  $("battery-body").innerHTML = `
+    ${hero(percent(b.percent), BATTERY_STATE[b.state], color)}
     ${bar(b.percent / 100, color)}
-    <dl>
-      ${time}
-      <dt>Здоровье батареи</dt><dd>${percent(b.healthPercent)}</dd>
-      <dt>Циклов зарядки</dt><dd>${b.cycleCount ?? "?"}</dd>
-    </dl>`;
+    ${rows([
+      ...time,
+      ["Потребление", b.powerWatts > 0.1 ? `${b.powerWatts.toFixed(1)} Вт` : "—"],
+      ["Здоровье батареи", percent(b.healthPercent)],
+      ["Циклов зарядки", String(b.cycleCount ?? "?")],
+    ])}`;
 }
-
-document.addEventListener("click", (e) => {
-  const goto = (e.target as HTMLElement).closest<HTMLElement>("[data-goto]");
-  if (goto) document.querySelector<HTMLButtonElement>(`.tab[data-tab="${goto.dataset.goto}"]`)?.click();
-});
 
 // ---------- Процессы ----------
 
@@ -262,8 +422,8 @@ function renderProcesses(all: Process[]) {
       }</th>`,
   ).join("");
 
-  const rows = list
-    .slice(0, 250)
+  const body = list
+    .slice(0, 200)
     .map(
       (p) => `<tr>
         <td class="name">${escape(p.name)} <span class="muted small">${p.pid}</span></td>
@@ -271,51 +431,45 @@ function renderProcesses(all: Process[]) {
         <td class="num">${bytes(p.memory)}</td>
         <td class="num">${p.readPerSec ? rate(p.readPerSec) : "—"}</td>
         <td class="num">${p.writePerSec ? rate(p.writePerSec) : "—"}</td>
-        <td class="actions"><button class="btn small ${armedPid === p.pid ? "danger" : ""}" data-kill="${p.pid}">
-          ${armedPid === p.pid ? "Точно?" : "Завершить"}</button></td>
+        <td class="actions">${killButton(p.pid)}</td>
       </tr>`,
     )
     .join("");
 
-  $("proc-table").innerHTML = `<thead><tr>${head}<th></th></tr></thead><tbody>${rows}</tbody>`;
+  $("proc-table").innerHTML = `<thead><tr>${head}<th></th></tr></thead><tbody>${body}</tbody>`;
 }
 
-$("proc-table").addEventListener("click", async (e) => {
-  const el = e.target as HTMLElement;
-  const th = el.closest<HTMLElement>("[data-sort]");
-  if (th) {
-    const key = th.dataset.sort as SortKey;
-    sortDesc = key === sortKey ? !sortDesc : key !== "name";
-    sortKey = key;
-  }
-  const kill = el.closest<HTMLElement>("[data-kill]");
-  if (kill) {
-    const pid = Number(kill.dataset.kill);
-    if (armedPid !== pid) {
-      // Первое нажатие только «взводит» кнопку, второе завершает процесс.
-      armedPid = pid;
-      setTimeout(() => armedPid === pid && (armedPid = null), 4000);
-    } else {
-      armedPid = null;
-      try {
-        await invoke("kill_process", { pid });
-        toast("Процесс завершён");
-      } catch (err) {
-        toast(String(err), true);
-      }
-    }
-  }
+$("proc-table").addEventListener("click", (e) => {
+  const th = (e.target as HTMLElement).closest<HTMLElement>("[data-sort]");
+  if (!th) return;
+  const key = th.dataset.sort as SortKey;
+  sortDesc = key === sortKey ? !sortDesc : key !== "name";
+  sortKey = key;
   if (snapshot) renderProcesses(snapshot.processes);
 });
 
-// ---------- Docker ----------
+// Кнопка «Завершить» есть в нескольких таблицах, поэтому слушаем клики на всей странице.
+document.addEventListener("click", async (e) => {
+  const kill = (e.target as HTMLElement).closest<HTMLElement>("[data-kill]");
+  if (!kill) return;
+  const pid = Number(kill.dataset.kill);
+  if (armedPid !== pid) {
+    // Первое нажатие только «взводит» кнопку, второе завершает процесс.
+    armedPid = pid;
+    setTimeout(() => armedPid === pid && (armedPid = null), 4000);
+  } else {
+    armedPid = null;
+    try {
+      await invoke("kill_process", { pid });
+      toast("Процесс завершён");
+    } catch (err) {
+      toast(String(err), true);
+    }
+  }
+  render();
+});
 
-function dockerUnavailable() {
-  return `<div class="empty">
-    <b>Docker недоступен</b>
-    <p class="muted">${escape(docker?.error ?? "Подключаюсь…")}</p>
-  </div>`;
-}
+// ---------- Docker ----------
 
 const busy = new Set<string>(); // контейнеры, над которыми сейчас идёт действие
 
@@ -347,13 +501,16 @@ function containerRow(c: Container) {
 
 function renderDocker() {
   const body = $("docker-body");
-  if (!docker) return (body.innerHTML = `<p class="muted">Подключаюсь к Docker…</p>`);
-  if (!docker.available) return (body.innerHTML = dockerUnavailable());
+  if (!docker) return (body.innerHTML = `<div class="panel muted">Подключаюсь к Docker…</div>`);
+  if (!docker.available)
+    return (body.innerHTML = `<div class="panel empty"><b>Docker недоступен</b>
+      <p class="muted">${escape(docker.error ?? "")}</p></div>`);
   if (docker.containers.length === 0)
-    return (body.innerHTML = `<div class="empty"><b>Контейнеров нет</b></div>`);
+    return (body.innerHTML = `<div class="panel empty"><b>Контейнеров нет</b>
+      <p class="muted">Запусти любой, например <code>docker run -d nginx</code>, и он появится здесь.</p></div>`);
   const running = docker.containers.filter((c) => c.state === "running").length;
   body.innerHTML = `<p class="muted">${running} из ${docker.containers.length} контейнеров запущено</p>
-  <div class="table-wrap"><table class="table">
+  <div class="panel flush"><table class="table">
     <thead><tr><th>Контейнер</th><th>Статус</th><th>Порты</th><th class="num">CPU</th><th class="num">Память</th><th></th></tr></thead>
     <tbody>${docker.containers.map(containerRow).join("")}</tbody>
   </table></div>`;
@@ -397,14 +554,17 @@ $("logs-close").addEventListener("click", () => $<HTMLDialogElement>("logs").clo
 // ---------- Подписи в боковом меню ----------
 
 function updateBadges(s: Snapshot) {
-  const mem = s.memory.total ? (s.memory.used / s.memory.total) * 100 : 0;
-  $("badge-overview").textContent = `${percent(s.cpu.usage)} · ${percent(mem)}`;
   const root = s.disks.find((d) => d.mountPoint === "/");
-  $("badge-disks").textContent = root ? `${bytes(root.available, 0)}` : "";
-  $("badge-battery").textContent = s.battery ? percent(s.battery.percent) : "";
-  $("badge-docker").textContent = docker?.available
-    ? String(docker.containers.filter((c) => c.state === "running").length)
-    : "";
+  const badges: Record<string, string> = {
+    cpu: percent(s.cpu.usage),
+    memory: percent(memPercent(s)),
+    network: `↓ ${bytes(s.network.rxPerSec, 0)}`,
+    disks: root ? bytes(root.available, 0) : "",
+    battery: s.battery ? percent(s.battery.percent) : "",
+    processes: String(s.processes.length),
+    docker: docker?.available ? String(docker.containers.filter((c) => c.state === "running").length) : "",
+  };
+  for (const [id, text] of Object.entries(badges)) $(`badge-${id}`).textContent = text;
 }
 
 // ---------- Уведомления внизу экрана ----------

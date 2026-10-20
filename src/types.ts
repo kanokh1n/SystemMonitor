@@ -9,7 +9,21 @@ export interface Snapshot {
     physicalCores: number | null;
     loadAvg: [number, number, number];
   };
-  memory: { total: number; used: number; available: number; swapTotal: number; swapUsed: number };
+  memory: {
+    total: number;
+    used: number;
+    available: number;
+    swapTotal: number;
+    swapUsed: number;
+    breakdown: {
+      app: number;
+      wired: number;
+      compressed: number;
+      cached: number;
+      pressure: number | null;
+      pressureLevel: "normal" | "warning" | "critical" | null;
+    } | null;
+  };
   disks: {
     name: string;
     mountPoint: string;
@@ -24,7 +38,7 @@ export interface Snapshot {
     txPerSec: number;
     rxTotal: number;
     txTotal: number;
-    interfaces: { name: string; ips: string[]; rxPerSec: number; txPerSec: number }[];
+    interfaces: NetInterface[];
   };
   battery: {
     percent: number;
@@ -65,4 +79,24 @@ export interface Container {
   cpuPercent: number | null;
   memoryUsed: number | null;
   memoryLimit: number | null;
+}
+
+export interface NetInterface {
+  name: string;
+  mac: string;
+  ipv4: string[];
+  ipv6: string[];
+  rxPerSec: number;
+  txPerSec: number;
+  rxTotal: number;
+  txTotal: number;
+  errors: number;
+}
+
+export interface NetDetails {
+  gateway: string | null;
+  defaultInterface: string | null;
+  dns: string[];
+  listening: { port: number; address: string; process: string; pid: number }[];
+  connections: { process: string; pid: number; connections: number; remoteHosts: number }[];
 }

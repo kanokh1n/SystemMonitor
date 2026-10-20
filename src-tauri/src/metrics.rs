@@ -47,6 +47,79 @@ pub struct MemoryInfo {
     pub available: u64,
     pub swap_total: u64,
     pub swap_used: u64,
+    pub breakdown: Option<MemoryBreakdown>,
+}
+
+/// Разбивка памяти как в «Мониторинге системы» macOS, в байтах.
+#[derive(Serialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MemoryBreakdown {
+    /// Память программ (анонимные страницы без «очищаемых»).
+    pub app: u64,
+    /// Память ядра и драйверов, её нельзя выгрузить.
+    pub wired: u64,
+    /// Сжатая память: macOS сжимает редко используемые страницы, чтобы не уходить в swap.
+    pub compressed: u64,
+    /// Кэш файлов: система отдаст его программам, как только понадобится.
+    pub cached: u64,
+    /// Давление памяти в процентах (0 — свободно, 100 — всё занято).
+    pub pressure: Option<u32>,
+    /// Уровень давления по мнению системы: normal, warning или critical.
+    pub pressure_level: Option<String>,
+}
+
+/// Разбирает вывод `vm_stat`: строки вида `Pages wired down:   123456.`
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn parse_vm_stat(text: &str) -> Option<MemoryBreakdown> {
+    let page_size: u64 = text
+        .split("page size of ")
+        .nth(1)?
+        .split_whitespace()
+        .next()?
+        .parse()
+        .ok()?;
+    let pages = |name: &str| -> u64 {
+        text.lines()
+            .find_map(|l| l.strip_prefix(name))
+            .and_then(|v| v.trim().trim_end_matches('.').parse().ok())
+            .unwrap_or(0)
+    };
+    let purgeable = pages("Pages purgeable:");
+    Some(MemoryBreakdown {
+        app: pages("Anonymous pages:").saturating_sub(purgeable) * page_size,
+        wired: pages("Pages wired down:") * page_size,
+        compressed: pages("Pages occupied by compressor:") * page_size,
+        cached: (pages("File-backed pages:") + purgeable) * page_size,
+        pressure: None,
+        pressure_level: None,
+    })
+}
+
+#[cfg(target_os = "macos")]
+fn memory_breakdown() -> Option<MemoryBreakdown> {
+    use std::process::Command;
+    let sysctl = |name: &str| -> Option<u32> {
+        let out = Command::new("sysctl").args(["-n", name]).output().ok()?;
+        String::from_utf8_lossy(&out.stdout).trim().parse().ok()
+    };
+    let out = Command::new("vm_stat").output().ok()?;
+    let mut breakdown = parse_vm_stat(&String::from_utf8_lossy(&out.stdout))?;
+    // memorystatus_level — сколько процентов памяти система считает свободной.
+    breakdown.pressure = sysctl("kern.memorystatus_level").map(|free| 100u32.saturating_sub(free));
+    breakdown.pressure_level = sysctl("kern.memorystatus_vm_pressure_level").map(|level| {
+        match level {
+            4 => "critical",
+            2 => "warning",
+            _ => "normal",
+        }
+        .to_string()
+    });
+    Some(breakdown)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn memory_breakdown() -> Option<MemoryBreakdown> {
+    None
 }
 
 #[derive(Serialize, Clone)]
@@ -82,9 +155,14 @@ pub struct NetworkInfo {
 #[serde(rename_all = "camelCase")]
 pub struct InterfaceInfo {
     pub name: String,
-    pub ips: Vec<String>,
+    pub mac: String,
+    pub ipv4: Vec<String>,
+    pub ipv6: Vec<String>,
     pub rx_per_sec: u64,
     pub tx_per_sec: u64,
+    pub rx_total: u64,
+    pub tx_total: u64,
+    pub errors: u64,
 }
 
 #[derive(Serialize, Clone)]
@@ -184,6 +262,7 @@ impl Collector {
             available: self.sys.available_memory(),
             swap_total: self.sys.total_swap(),
             swap_used: self.sys.used_swap(),
+            breakdown: memory_breakdown(),
         };
 
         let mut disk_io = IoRate::default();
@@ -224,22 +303,25 @@ impl Collector {
             network.tx_per_sec += tx;
             network.rx_total += data.total_received();
             network.tx_total += data.total_transmitted();
-            let ips: Vec<String> = data
-                .ip_networks()
-                .iter()
-                .filter(|ip| ip.addr.is_ipv4())
-                .map(|ip| ip.addr.to_string())
-                .collect();
-            if !ips.is_empty() {
-                network.interfaces.push(InterfaceInfo {
-                    name: name.clone(),
-                    ips,
-                    rx_per_sec: rx,
-                    tx_per_sec: tx,
-                });
+            let (v4, v6): (Vec<&sysinfo::IpNetwork>, Vec<_>) = data.ip_networks().iter().partition(|ip| ip.addr.is_ipv4());
+            // Служебные интерфейсы macOS без адресов и трафика не показываем.
+            if v4.is_empty() && v6.is_empty() && data.total_received() == 0 {
+                continue;
             }
+            network.interfaces.push(InterfaceInfo {
+                name: name.clone(),
+                mac: data.mac_address().to_string(),
+                ipv4: v4.iter().map(|ip| format!("{}/{}", ip.addr, ip.prefix)).collect(),
+                ipv6: v6.iter().map(|ip| ip.addr.to_string()).collect(),
+                rx_per_sec: rx,
+                tx_per_sec: tx,
+                rx_total: data.total_received(),
+                tx_total: data.total_transmitted(),
+                errors: data.total_errors_on_received() + data.total_errors_on_transmitted(),
+            });
         }
-        network.interfaces.sort_by(|a, b| a.name.cmp(&b.name));
+        // Сначала интерфейсы с IPv4 (обычно Wi‑Fi en0 и VPN), потом остальные.
+        network.interfaces.sort_by(|a, b| (a.ipv4.is_empty(), &a.name).cmp(&(b.ipv4.is_empty(), &b.name)));
 
         let mut temperatures: Vec<TempInfo> = self
             .components
@@ -362,5 +444,21 @@ mod tests {
         assert!(s.cpu.cores > 0);
         assert!(!s.processes.is_empty());
         assert!(serde_json::to_string(&s).is_ok());
+    }
+
+    #[test]
+    fn parses_vm_stat() {
+        let text = "Mach Virtual Memory Statistics: (page size of 16384 bytes)\n\
+            Pages free:                                5000.\n\
+            Pages wired down:                         100000.\n\
+            Pages purgeable:                           2000.\n\
+            File-backed pages:                        50000.\n\
+            Anonymous pages:                         300000.\n\
+            Pages occupied by compressor:             40000.\n";
+        let b = parse_vm_stat(text).unwrap();
+        assert_eq!(b.wired, 100_000 * 16384);
+        assert_eq!(b.app, 298_000 * 16384);
+        assert_eq!(b.cached, 52_000 * 16384);
+        assert_eq!(b.compressed, 40_000 * 16384);
     }
 }

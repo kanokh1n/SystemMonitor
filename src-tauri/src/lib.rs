@@ -1,5 +1,6 @@
 mod docker;
 mod metrics;
+mod netinfo;
 mod tray;
 
 use tauri::WindowEvent;
@@ -10,6 +11,7 @@ pub fn run() {
             tray::create(app.handle())?;
             metrics::spawn(app.handle().clone());
             docker::spawn(app.handle().clone());
+            netinfo::spawn(app.handle().clone());
             Ok(())
         })
         // Крестик прячет окно, а не закрывает приложение: оно продолжает жить в строке меню.
@@ -23,6 +25,7 @@ pub fn run() {
             metrics::kill_process,
             docker::container_action,
             docker::container_logs,
+            netinfo::public_ip,
         ])
         .build(tauri::generate_context!())
         .expect("не удалось запустить приложение");
