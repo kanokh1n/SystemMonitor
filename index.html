@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>System Monitor</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <header class="titlebar" data-tauri-drag-region>
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="overview">Обзор</button>
+        <button class="tab" data-tab="processes">Процессы</button>
+        <button class="tab" data-tab="docker">Docker</button>
+      </nav>
+      <div class="host" id="host" data-tauri-drag-region></div>
+    </header>
+
+    <main>
+      <section id="overview" class="view active">
+        <div class="grid">
+          <article class="card" id="card-cpu"></article>
+          <article class="card" id="card-mem"></article>
+          <article class="card" id="card-net"></article>
+          <article class="card" id="card-disk"></article>
+          <article class="card" id="card-battery"></article>
+          <article class="card" id="card-system"></article>
+          <article class="card wide" id="card-top"></article>
+          <article class="card wide" id="card-docker"></article>
+        </div>
+      </section>
+
+      <section id="processes" class="view">
+        <div class="toolbar">
+          <input id="proc-search" type="search" placeholder="Поиск по имени или PID" autocomplete="off" />
+          <span class="muted" id="proc-count"></span>
+        </div>
+        <div class="table-wrap"><table class="table" id="proc-table"></table></div>
+      </section>
+
+      <section id="docker" class="view">
+        <div id="docker-body"></div>
+      </section>
+    </main>
+
+    <dialog id="logs">
+      <div class="dialog-head">
+        <strong id="logs-title"></strong>
+        <button class="btn" id="logs-close">Закрыть</button>
+      </div>
+      <pre id="logs-body"></pre>
+    </dialog>
+
+    <div class="toast" id="toast" hidden></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
