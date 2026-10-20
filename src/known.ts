@@ -90,11 +90,21 @@ const KNOWN: Record<string, string> = {
   "php-fpm": "PHP",
   git: "Git",
   "system-monitor": "это приложение",
+  claude: "Claude Code в терминале",
+
+  // Данные пользователя
+  contactsd: "Контакты: синхронизация и поиск",
+  calaccessd: "Календарь: доступ приложений",
+  remindd: "Напоминания",
+  CalendarAgent: "Календарь: синхронизация",
+  IMDPersistenceAgent: "Сообщения: хранение переписки",
+  suggestd: "подсказки в почте, Сообщениях и Spotlight",
 };
 
 /** Правила для семейств процессов, у которых меняется хвост имени. */
 const RULES: [RegExp, (app: string | null) => string][] = [
-  [/Helper \(Renderer\)$/, (app) => `вкладка или расширение ${app ?? "браузера"}`],
+  // Chrome называет их «(Renderer)» или «(Aperitif Renderer)»: это страницы, вкладки и расширения.
+  [/Helper \((.+ )?Renderer\)$/, (app) => `страница, вкладка или расширение ${app ?? "приложения"}`],
   [/Helper \(GPU\)$/, (app) => `графика ${app ?? "приложения"}`],
   [/Helper \(Plugin\)$/, (app) => `плагины ${app ?? "приложения"}`],
   [/Helper/, (app) => `вспомогательный процесс ${app ?? "приложения"}`],
