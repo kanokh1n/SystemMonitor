@@ -3,6 +3,7 @@ mod disk;
 mod docker;
 mod metrics;
 mod netinfo;
+mod servers;
 mod tray;
 
 use tauri::WindowEvent;
@@ -10,12 +11,14 @@ use tauri::WindowEvent;
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             tray::create(app.handle())?;
             metrics::spawn(app.handle().clone());
             docker::spawn(app.handle().clone());
             netinfo::spawn(app.handle().clone());
             devices::spawn(app.handle().clone());
+            servers::spawn(app.handle().clone());
             Ok(())
         })
         // Крестик прячет окно, а не закрывает приложение: оно продолжает жить в строке меню.
@@ -31,6 +34,11 @@ pub fn run() {
             docker::container_logs,
             netinfo::public_ip,
             devices::refresh_devices,
+            servers::servers_list,
+            servers::server_save,
+            servers::server_remove,
+            servers::server_refresh,
+            servers::ssh_setup,
             disk::reveal_in_finder,
             disk::open_full_disk_access,
             disk::has_full_disk_access,

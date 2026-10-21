@@ -1,7 +1,7 @@
 [package]
 name = "system-monitor"
 version = "0.1.0"
-description = "Системный монитор для macOS: CPU, память, диск, сеть, батарея и Bluetooth‑устройства, процессы и Docker"
+description = "Системный монитор для macOS: CPU, память, диск, сеть, батарея и Bluetooth‑устройства, процессы, Docker и серверы по SSH"
 authors = ["Kanokhin"]
 edition = "2021"
 
@@ -25,3 +25,4 @@ trash = "5.2.9"
 rayon = "1.12.0"
 plist = "1.10.2"
 tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2"

@@ -5,6 +5,7 @@ import { History, sparkline } from "./chart";
 import { ago, bytes, duration, escape, minutes, percent, rate } from "./format";
 import { initDisk } from "./disk";
 import { describe } from "./known";
+import { initServers } from "./servers";
 import type { Container, Device, DockerSnapshot, NetDetails, Process, Snapshot } from "./types";
 
 const COLORS = {
@@ -45,6 +46,7 @@ const SECTIONS: [id: string, title: string, icon: string][] = [
   ["devices", "Устройства", '<path d="M4 18V7a2 2 0 0 1 2-2h11M2 18h12"/><rect x="16" y="9" width="6" height="11" rx="1.5"/>'],
   ["processes", "Процессы", '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h8"/>'],
   ["docker", "Docker", '<path d="M3 12h16a4 4 0 0 1-4 5H8a5 5 0 0 1-5-5zM5 9h3v3H5zM8 9h3v3H8zM11 9h3v3h-3zM8 6h3v3H8z"/>'],
+  ["servers", "Серверы", '<rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6"/>'],
 ];
 
 $("nav").innerHTML = SECTIONS.map(
@@ -669,3 +671,4 @@ function toast(text: string, error = false) {
 window.addEventListener("resize", render);
 
 initDisk(toast);
+initServers(toast);
