@@ -101,3 +101,82 @@ export interface NetDetails {
   listening: { port: number; address: string; process: string; pid: number }[];
   connections: { process: string; pid: number; connections: number; remoteHosts: number }[];
 }
+
+// ---------- Анализ и очистка диска (src-tauri/src/disk/) ----------
+
+export interface ScanProgress {
+  root: string;
+  running: boolean;
+  cancelled: boolean;
+  files: number;
+  bytes: number;
+  current: string;
+  elapsedMs: number;
+  denied: number;
+}
+
+export interface DiskEntry {
+  name: string;
+  path: string;
+  size: number;
+  files: number;
+  newest: number;
+  isDir: boolean;
+  denied: boolean;
+  hasChildren: boolean;
+  protected: string | null;
+}
+
+export interface DirView {
+  root: string;
+  dir: DiskEntry;
+  children: DiskEntry[];
+  restSize: number;
+  restCount: number;
+  denied: string[];
+}
+
+export interface CleanItem {
+  path: string;
+  label: string;
+  size: number;
+  newest: number;
+  selected: boolean;
+  protected: string | null;
+}
+
+export interface AppInfo {
+  name: string;
+  path: string;
+  bundleId: string;
+  version: string | null;
+  size: number;
+  lastUsed: number | null;
+  protected: string | null;
+}
+
+export interface Uninstall {
+  app: CleanItem;
+  leftovers: CleanItem[];
+}
+
+export interface CleanCategory {
+  id: string;
+  title: string;
+  hint: string;
+  items: CleanItem[];
+}
+
+export interface DockerUsage {
+  available: boolean;
+  error: string | null;
+  stoppedContainers: [number, number];
+  unusedImages: [number, number];
+  buildCache: number | null;
+  volumes: [number, number];
+}
+
+export interface TrashReport {
+  trashed: string[];
+  failed: [string, string][];
+}
