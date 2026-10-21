@@ -117,11 +117,20 @@ pub fn classify(stderr: &str) -> Failure {
     let has = |s: &str| text.to_lowercase().contains(&s.to_lowercase());
     let last = text.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("ssh завершился с ошибкой").trim();
     if has("Permission denied") || has("Too many authentication failures") {
-        Failure::Error(
-            "Ключ не подошёл. Проверь, что публичный ключ есть в ~/.ssh/authorized_keys на сервере. \
-             Ключ с паролем добавь в связку: ssh-add --apple-use-keychain ~/.ssh/<ключ>"
-                .into(),
-        )
+        // ssh пишет «kanokhin@1.2.3.4: Permission denied (publickey,password).» —
+        // показываем, под каким именем был вход: чаще всего дело в нём.
+        let login = text
+            .lines()
+            .find_map(|l| l.split_once(": Permission denied").map(|(who, _)| who.trim().to_string()))
+            .filter(|who| who.contains('@'));
+        let who = login.as_deref().map_or(String::new(), |l| format!(" для {l}"));
+        let user = login.as_deref().and_then(|l| l.split('@').next()).unwrap_or("<пользователь>");
+        Failure::Error(format!(
+            "Сервер не принял ни один ключ{who}. Если заходишь под другим именем (например, root), \
+             укажи его в поле «Пользователь». Если ключа на сервере ещё нет, один раз выполни в Терминале \
+             ssh-copy-id {user}@<адрес> и введи пароль. Ключ с паролем добавь в связку: \
+             ssh-add --apple-use-keychain ~/.ssh/<ключ>"
+        ))
     } else if has("REMOTE HOST IDENTIFICATION HAS CHANGED") || has("Host key verification failed") {
         Failure::Error(
             "Ключ сервера изменился (переустановили систему или это другой сервер). \
@@ -317,7 +326,9 @@ mod tests {
 
     #[test]
     fn classifies_errors() {
-        assert!(matches!(classify("root@1.2.3.4: Permission denied (publickey)."), Failure::Error(_)));
+        let Failure::Error(msg) = classify("kanokhin@1.2.3.4: Permission denied (publickey,password).") else { panic!() };
+        assert!(msg.contains("для kanokhin@1.2.3.4"));
+        assert!(msg.contains("ssh-copy-id kanokhin@"));
         assert!(matches!(classify("ssh: connect to host 1.2.3.4 port 22: Operation timed out"), Failure::Unreachable(_)));
         assert!(matches!(classify("ssh: connect to host 1.2.3.4 port 22: Connection refused"), Failure::Unreachable(_)));
         assert!(matches!(classify("ssh: Could not resolve hostname foo: nodename nor servname provided"), Failure::Unreachable(_)));
