@@ -1,4 +1,4 @@
-// Типы данных, которые присылает Rust (src-tauri/src/metrics.rs и docker.rs).
+// Типы данных, которые присылает Rust (src-tauri/src/metrics.rs, docker.rs и devices.rs).
 
 export interface Snapshot {
   cpu: {
@@ -92,6 +92,18 @@ export interface NetInterface {
   rxTotal: number;
   txTotal: number;
   errors: number;
+}
+
+export interface Device {
+  id: string;
+  name: string;
+  kind: "headphones" | "mouse" | "keyboard" | "trackpad" | "gamepad" | "speaker" | "phone" | "watch" | "other";
+  connected: boolean;
+  levels: { part: "main" | "left" | "right" | "case"; percent: number }[];
+  /** Заряд измерен только что, а не взят из сохранённого. */
+  live: boolean;
+  levelsAt: number | null;
+  lastSeen: number | null;
 }
 
 export interface NetDetails {

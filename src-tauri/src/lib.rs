@@ -1,3 +1,4 @@
+mod devices;
 mod disk;
 mod docker;
 mod metrics;
@@ -14,6 +15,7 @@ pub fn run() {
             metrics::spawn(app.handle().clone());
             docker::spawn(app.handle().clone());
             netinfo::spawn(app.handle().clone());
+            devices::spawn(app.handle().clone());
             Ok(())
         })
         // Крестик прячет окно, а не закрывает приложение: оно продолжает жить в строке меню.
@@ -28,6 +30,7 @@ pub fn run() {
             docker::container_action,
             docker::container_logs,
             netinfo::public_ip,
+            devices::refresh_devices,
             disk::reveal_in_finder,
             disk::open_full_disk_access,
             disk::has_full_disk_access,
