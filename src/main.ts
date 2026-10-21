@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 
 import { History, sparkline } from "./chart";
 import { bytes, duration, escape, minutes, percent, rate } from "./format";
+import { initDisk } from "./disk";
 import { describe } from "./known";
 import type { Container, DockerSnapshot, NetDetails, Process, Snapshot } from "./types";
 
@@ -591,3 +592,5 @@ function toast(text: string, error = false) {
 }
 
 window.addEventListener("resize", render);
+
+initDisk(toast);

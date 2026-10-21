@@ -48,10 +48,19 @@
         <section class="section" id="disks">
           <h2>Диски</h2>
           <div class="panel" id="disks-body"></div>
-          <div class="panel soon">
-            <b>Очистка диска</b>
-            <span class="muted">Скоро здесь: что занимает больше всего места, удаление файлов и приложений в Корзину.</span>
+          <div class="panel hint" id="fda-hint" hidden></div>
+          <h3>Что занимает место</h3>
+          <div class="toolbar">
+            <button class="btn primary" id="scan-home">Домашняя папка</button>
+            <button class="btn" id="scan-apps">Программы</button>
+            <button class="btn" id="scan-pick">Другая папка…</button>
+            <button class="btn" id="scan-stop" hidden>Остановить</button>
           </div>
+          <div id="scan-body"></div>
+          <h3>Программы</h3>
+          <div id="apps-body"></div>
+          <h3>Быстрая очистка</h3>
+          <div id="cleanup-body"></div>
         </section>
 
         <section class="section" id="battery">
@@ -87,6 +96,16 @@
       <pre id="logs-body"></pre>
     </dialog>
 
+    <dialog id="confirm" class="confirm">
+      <div class="dialog-head"><strong id="confirm-title"></strong></div>
+      <div class="confirm-body" id="confirm-body"></div>
+      <div class="dialog-foot">
+        <button class="btn" id="confirm-cancel">Отмена</button>
+        <button class="btn primary" id="confirm-ok">OK</button>
+      </div>
+    </dialog>
+
+    <div class="selbar" id="selbar" hidden></div>
     <div class="toast" id="toast" hidden></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

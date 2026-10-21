@@ -42,7 +42,7 @@ pub struct ContainerInfo {
 
 /// Docker Desktop, OrbStack и Colima кладут сокет в разные места.
 /// Сначала уважаем DOCKER_HOST, потом перебираем известные пути.
-async fn connect() -> Result<Docker, String> {
+pub async fn connect() -> Result<Docker, String> {
     if std::env::var("DOCKER_HOST").is_ok() {
         if let Ok(docker) = Docker::connect_with_defaults() {
             if docker.ping().await.is_ok() {
