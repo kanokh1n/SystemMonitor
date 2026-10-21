@@ -1,7 +1,7 @@
 [package]
 name = "system-monitor"
 version = "0.1.0"
-description = "Системный монитор для macOS: CPU, память, диск, сеть, батарея, процессы и Docker"
+description = "Системный монитор для macOS: CPU, память, диск, сеть, батарея и Bluetooth‑устройства, процессы и Docker"
 authors = ["Kanokhin"]
 edition = "2021"
 

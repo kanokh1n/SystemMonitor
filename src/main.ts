@@ -2,9 +2,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
 import { History, sparkline } from "./chart";
-import { bytes, duration, escape, minutes, percent, rate } from "./format";
+import { ago, bytes, duration, escape, minutes, percent, rate } from "./format";
 import { describe } from "./known";
-import type { Container, DockerSnapshot, NetDetails, Process, Snapshot } from "./types";
+import type { Container, Device, DockerSnapshot, NetDetails, Process, Snapshot } from "./types";
 
 const COLORS = {
   cpu: "#14b8a6",
@@ -30,6 +30,7 @@ const history = {
 let snapshot: Snapshot | null = null;
 let docker: DockerSnapshot | null = null;
 let net: NetDetails | null = null;
+let devices: Device[] | null = null;
 let publicIp: string | null = null;
 
 // ---------- Боковое меню и прокрутка ----------
@@ -40,7 +41,7 @@ const SECTIONS: [id: string, title: string, icon: string][] = [
   ["memory", "Память", '<rect x="3" y="7" width="18" height="10" rx="1.5"/><path d="M7 7v10M11 7v10M15 7v10M6 20v-3M18 20v-3"/>'],
   ["network", "Сеть", '<path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1"/>'],
   ["disks", "Диски", '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>'],
-  ["battery", "Батарея", '<rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2M6 10v4M10 10v4"/>'],
+  ["devices", "Устройства", '<path d="M4 18V7a2 2 0 0 1 2-2h11M2 18h12"/><rect x="16" y="9" width="6" height="11" rx="1.5"/>'],
   ["processes", "Процессы", '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h8"/>'],
   ["docker", "Docker", '<path d="M3 12h16a4 4 0 0 1-4 5H8a5 5 0 0 1-5-5zM5 9h3v3H5zM8 9h3v3H8zM11 9h3v3h-3zM8 6h3v3H8z"/>'],
 ];
@@ -95,6 +96,11 @@ listen<DockerSnapshot>("docker", ({ payload }) => {
 
 listen<NetDetails>("netinfo", ({ payload }) => {
   net = payload;
+});
+
+listen<Device[]>("devices", ({ payload }) => {
+  devices = payload;
+  renderDevices();
 });
 
 function render() {
@@ -159,7 +165,7 @@ function renderOverview(s: Snapshot) {
     ["memory", "Память", percent(memPercent(s)), COLORS.mem],
     ["network", "Сеть", `↓ ${rate(s.network.rxPerSec)}`, COLORS.down],
     ["disks", "Свободно", root ? bytes(root.available, 0) : "—"],
-    ["battery", "Батарея", s.battery ? percent(s.battery.percent) : "—"],
+    ["devices", "Батарея", s.battery ? percent(s.battery.percent) : "—"],
     ["docker", "Контейнеры", running == null ? "—" : String(running)],
   ];
   $("overview-strip").innerHTML = tiles
@@ -362,7 +368,7 @@ function renderDisks(s: Snapshot) {
   ]);
 }
 
-// ---------- Батарея ----------
+// ---------- Устройства: батарея Mac и Bluetooth ----------
 
 const BATTERY_STATE: Record<string, string> = {
   charging: "Заряжается",
@@ -379,7 +385,7 @@ function renderBattery(s: Snapshot) {
     $("battery-body").innerHTML = `<p class="muted">Батарея не найдена</p>`;
     return;
   }
-  const color = b.percent < 15 ? "var(--crit)" : b.percent < 30 ? "var(--warn)" : "var(--ok)";
+  const color = chargeColor(b.percent);
   const time: [string, string][] =
     b.state === "discharging" && b.minutesToEmpty
       ? [["Осталось", minutes(b.minutesToEmpty)]]
@@ -396,6 +402,75 @@ function renderBattery(s: Snapshot) {
       ["Циклов зарядки", String(b.cycleCount ?? "?")],
     ])}`;
 }
+
+const chargeColor = (pct: number) => (pct < 15 ? "var(--crit)" : pct < 30 ? "var(--warn)" : "var(--ok)");
+
+const DEVICE_ICONS: Record<Device["kind"], string> = {
+  headphones: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/>',
+  mouse: '<rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 7v4"/>',
+  keyboard: '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
+  trackpad: '<rect x="3" y="5" width="18" height="14" rx="2"/>',
+  gamepad: '<path d="M6 9h12a4 4 0 0 1 0 8c-2 0-3-2-6-2s-4 2-6 2a4 4 0 0 1 0-8z"/><path d="M8 11v3M6.5 12.5h3M16 12h.01M18 13h.01"/>',
+  speaker: '<rect x="6" y="2" width="12" height="20" rx="2"/><circle cx="12" cy="14" r="3"/><path d="M12 6h.01"/>',
+  phone: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+  watch: '<rect x="7" y="6" width="10" height="12" rx="3"/><path d="M9 6l1-4h4l1 4M9 18l1 4h4l1-4"/>',
+  other: '<path d="M7 7l10 10-5 5V2l5 5L7 17"/>',
+};
+
+const PART_LABEL: Record<Device["levels"][number]["part"], string> = {
+  main: "",
+  left: "Левый",
+  right: "Правый",
+  case: "Кейс",
+};
+
+function deviceStatus(d: Device) {
+  if (d.connected) {
+    if (d.live) return "подключено";
+    return d.levels.length && d.levelsAt ? `подключено · заряд ${ago(d.levelsAt)}` : "подключено · заряд не сообщает";
+  }
+  const when = d.levelsAt ?? d.lastSeen;
+  return when ? `не подключено · заряд ${ago(when)}` : "не подключено";
+}
+
+function deviceRow(d: Device) {
+  const levels = d.levels
+    .map((l) => {
+      const label = PART_LABEL[l.part];
+      return `<div class="charge ${d.live ? "" : "stale"}">
+        <span class="muted small">${label}</span>
+        ${bar(l.percent / 100, chargeColor(l.percent))}
+        <b>${percent(l.percent)}</b>
+      </div>`;
+    })
+    .join("");
+  return `<div class="device ${d.connected ? "" : "off"}">
+    <svg viewBox="0 0 24 24" aria-hidden="true">${DEVICE_ICONS[d.kind] ?? DEVICE_ICONS.other}</svg>
+    <div class="device-name"><b>${escape(d.name)}</b><div class="muted small">${deviceStatus(d)}</div></div>
+    <div class="charges">${levels || '<span class="muted small">—</span>'}</div>
+  </div>`;
+}
+
+function renderDevices() {
+  const body = $("devices-body");
+  if (!devices) return (body.innerHTML = `<div class="device muted">Ищу устройства…</div>`);
+  if (devices.length === 0)
+    return (body.innerHTML = `<div class="device muted">Нет сопряжённых Bluetooth‑устройств</div>`);
+  body.innerHTML = devices.map(deviceRow).join("");
+}
+
+$("devices-refresh").addEventListener("click", async (e) => {
+  const btn = e.currentTarget as HTMLButtonElement;
+  btn.disabled = true;
+  try {
+    devices = await invoke<Device[]>("refresh_devices");
+    renderDevices();
+  } catch (err) {
+    toast(String(err), true);
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 // ---------- Процессы ----------
 
@@ -571,7 +646,7 @@ function updateBadges(s: Snapshot) {
     memory: percent(memPercent(s)),
     network: `↓ ${bytes(s.network.rxPerSec, 0)}`,
     disks: root ? bytes(root.available, 0) : "",
-    battery: s.battery ? percent(s.battery.percent) : "",
+    devices: s.battery ? percent(s.battery.percent) : "",
     processes: String(s.processes.length),
     docker: docker?.available ? String(docker.containers.filter((c) => c.state === "running").length) : "",
   };

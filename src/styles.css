@@ -270,3 +270,19 @@ dialog pre {
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
 }
 .toast.error { background: var(--crit); color: #fff; }
+
+/* Устройства: строка на каждое Bluetooth‑устройство, справа заряд по частям. */
+.toolbar.sub { margin: 22px 0 8px; }
+.toolbar.sub h3 { margin: 0; }
+#devices > h3:first-of-type { margin-top: 0; }
+.charge .bar { margin: 0; }
+.device { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--border); }
+.device:first-child { border-top: 0; }
+.device > svg { width: 22px; height: 22px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; color: var(--muted); }
+.device-name { flex: 1; min-width: 0; }
+.device-name b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.device.off .device-name b { color: var(--muted); font-weight: 500; }
+.charges { display: flex; gap: 16px; }
+.charge { display: grid; grid-template-columns: auto 64px 36px; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.charge b { text-align: right; }
+.charge.stale { opacity: 0.55; }

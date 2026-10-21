@@ -54,13 +54,16 @@
           </div>
         </section>
 
-        <section class="section" id="battery">
-          <h2>Батарея</h2>
+        <section class="section" id="devices">
+          <h2>Устройства</h2>
+          <h3>Этот Mac</h3>
           <div class="panel" id="battery-body"></div>
-          <div class="panel soon">
-            <b>Другие устройства</b>
-            <span class="muted">Скоро здесь: заряд наушников, мыши, клавиатуры и других Bluetooth‑устройств.</span>
+          <div class="toolbar sub">
+            <h3>Bluetooth</h3>
+            <span class="spacer"></span>
+            <button class="btn small" id="devices-refresh">Обновить</button>
           </div>
+          <div class="panel flush" id="devices-body"></div>
         </section>
 
         <section class="section" id="processes">

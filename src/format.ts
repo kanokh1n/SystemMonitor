@@ -30,6 +30,15 @@ export function minutes(total: number): string {
   return h > 0 ? `${h} ч ${m} мин` : `${m} мин`;
 }
 
+/** Сколько прошло с момента `unixSecs`: «только что», «5 мин назад», «2 ч назад». */
+export function ago(unixSecs: number): string {
+  const secs = Math.max(0, Date.now() / 1000 - unixSecs);
+  if (secs < 90) return "только что";
+  if (secs < 3600) return `${Math.round(secs / 60)} мин назад`;
+  if (secs < 86400) return `${Math.round(secs / 3600)} ч назад`;
+  return `${Math.round(secs / 86400)} д назад`;
+}
+
 export function escape(s: string): string {
   return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
