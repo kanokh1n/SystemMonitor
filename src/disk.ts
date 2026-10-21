@@ -64,7 +64,7 @@ function clock(ms: number) {
 
 // ---------- Диалог подтверждения ----------
 
-interface Ask {
+export interface Ask {
   title: string;
   body: string;
   ok: string;
@@ -74,7 +74,7 @@ interface Ask {
 }
 
 /** Показывает диалог. Возвращает его (чтобы прочитать галочки) или null, если отменили. */
-function ask({ title, body, ok, danger, info }: Ask): Promise<HTMLDialogElement | null> {
+export function ask({ title, body, ok, danger, info }: Ask): Promise<HTMLDialogElement | null> {
   const dialog = $<HTMLDialogElement>("confirm");
   $("confirm-title").textContent = title;
   $("confirm-body").innerHTML = body;
