@@ -2,13 +2,14 @@
 //!
 //! Раз в 30 секунд заходим на каждый сервер системным `ssh` с ключами из `~/.ssh`,
 //! запускаем скрипт из [`stats`] и показываем CPU, память, диски, аптайм и Docker.
-//! Если сервер перестал отвечать — присылаем уведомление macOS, когда вернулся — тоже.
+//! Если сервер перестал отвечать — говорим об этом через [`Events::alert`],
+//! когда вернулся — тоже. Как показать уведомление, решает тот, кто держит [`Monitor`].
 //!
 //! Список серверов хранится в `servers.json` в папке данных приложения.
 //! Паролей и ключей там нет: только адрес, пользователь, порт и путь к ключу.
 
-mod ssh;
-mod stats;
+pub mod ssh;
+pub mod stats;
 
 use std::fs;
 use std::path::PathBuf;
@@ -18,13 +19,11 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_notification::NotificationExt;
 
 use ssh::{ConfigHost, Failure};
 use stats::Stats;
 
-const POLL: Duration = Duration::from_secs(30);
+pub const POLL: Duration = Duration::from_secs(30);
 /// Сколько неудачных опросов подряд, прежде чем считать сервер упавшим.
 /// Одна ошибка бывает после сна Mac или из‑за короткого сбоя сети.
 const FAILURES_TO_ALERT: u32 = 2;
@@ -147,7 +146,7 @@ fn apply(s: &mut Server, result: Result<(Stats, u64), Failure>, network_up: bool
     }
 }
 
-pub struct Store {
+struct Store {
     path: Option<PathBuf>,
     servers: Mutex<Vec<Server>>,
 }
@@ -182,14 +181,18 @@ fn now() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
-fn emit(app: &AppHandle) {
-    let list = app.state::<Store>().list();
-    DOWN.store(list.iter().filter(|s| s.status == "down").count(), Ordering::Relaxed);
-    let _ = app.emit("servers", &list);
+/// Куда сообщать о переменах: окну — событием и уведомлением macOS, панели — строкой в stdout.
+pub trait Events: Send + Sync {
+    /// Список или состояние серверов изменились.
+    fn changed(&self, servers: &[Server]);
+    /// Сервер упал или вернулся.
+    fn alert(&self, title: &str, body: &str);
 }
 
-fn notify(app: &AppHandle, title: &str, body: &str) {
-    let _ = app.notification().builder().title(title).body(body).show();
+/// Список серверов, их опрос и правка.
+pub struct Monitor {
+    store: Store,
+    events: Box<dyn Events>,
 }
 
 fn fetch(target: &Target) -> Result<(Stats, u64), Failure> {
@@ -200,54 +203,123 @@ fn fetch(target: &Target) -> Result<(Stats, u64), Failure> {
     Ok((stats, elapsed.as_millis().saturating_sub(1000) as u64))
 }
 
-/// Опрашивает один сервер. Пока опрос идёт, второй для того же сервера не запускаем.
-fn poll(app: &AppHandle, id: &str) {
-    let store = app.state::<Store>();
-    let (target, name) = {
-        let mut servers = store.servers.lock().unwrap();
-        let Some(s) = servers.iter_mut().find(|s| s.config.id == id && !s.busy) else { return };
-        s.busy = true;
-        (s.config.target.clone(), s.config.name.clone())
-    };
-    emit(app);
+impl Monitor {
+    pub fn new(path: Option<PathBuf>, events: Box<dyn Events>) -> Self {
+        Self { store: Store::load(path), events }
+    }
 
-    let result = fetch(&target);
-    let network_up = result.is_ok() || ssh::local_network_up();
+    pub fn list(&self) -> Vec<Server> {
+        self.store.list()
+    }
 
-    let alert = {
-        let mut servers = store.servers.lock().unwrap();
-        // Сервер могли удалить, пока шёл опрос.
-        let Some(s) = servers.iter_mut().find(|s| s.config.id == id) else { return };
-        s.busy = false;
-        apply(s, result, network_up, now())
-    };
-    emit(app);
-    match alert {
-        Some(Alert::Down(reason)) => notify(app, &format!("{name} не отвечает"), &reason),
-        Some(Alert::Back) => notify(app, &format!("{name} снова в строю"), "Сервер отвечает по SSH"),
-        None => {}
+    fn emit(&self) {
+        let list = self.store.list();
+        DOWN.store(list.iter().filter(|s| s.status == "down").count(), Ordering::Relaxed);
+        self.events.changed(&list);
+    }
+
+    /// Опрашивает один сервер. Пока опрос идёт, второй для того же сервера не запускаем.
+    pub fn poll(&self, id: &str) {
+        let (target, name) = {
+            let mut servers = self.store.servers.lock().unwrap();
+            let Some(s) = servers.iter_mut().find(|s| s.config.id == id && !s.busy) else { return };
+            s.busy = true;
+            (s.config.target.clone(), s.config.name.clone())
+        };
+        self.emit();
+
+        let result = fetch(&target);
+        let network_up = result.is_ok() || ssh::local_network_up();
+
+        let alert = {
+            let mut servers = self.store.servers.lock().unwrap();
+            // Сервер могли удалить, пока шёл опрос.
+            let Some(s) = servers.iter_mut().find(|s| s.config.id == id) else { return };
+            s.busy = false;
+            apply(s, result, network_up, now())
+        };
+        self.emit();
+        match alert {
+            Some(Alert::Down(reason)) => self.events.alert(&format!("{name} не отвечает"), &reason),
+            Some(Alert::Back) => self.events.alert(&format!("{name} снова в строю"), "Сервер отвечает по SSH"),
+            None => {}
+        }
+    }
+
+    pub fn poll_all(&self) {
+        let ids: Vec<String> = self.store.list().into_iter().map(|s| s.config.id).collect();
+        thread::scope(|scope| {
+            for id in &ids {
+                scope.spawn(move || self.poll(id));
+            }
+        });
+    }
+
+    /// Добавляет сервер (без `id`) или меняет существующий. Возвращает его `id`;
+    /// опросить его сразу — забота вызывающего, чтобы не держать его ждать ssh.
+    pub fn save(&self, id: Option<String>, name: String, target: Target) -> Result<String, String> {
+        let target = validate(target)?;
+        let name = clean(Some(name)).unwrap_or_else(|| target.host.clone());
+        let id = {
+            let mut servers = self.store.servers.lock().unwrap();
+            let id = match id.and_then(|id| servers.iter().position(|s| s.config.id == id)) {
+                Some(i) => {
+                    let s = &mut servers[i];
+                    let changed = s.config.target != target;
+                    s.config.name = name;
+                    s.config.target = target;
+                    if changed {
+                        // Новый адрес — начинаем с чистого листа.
+                        *s = Server::new(s.config.clone());
+                    }
+                    s.config.id.clone()
+                }
+                None => {
+                    let config = ServerConfig { id: new_id(), name, target };
+                    servers.push(Server::new(config));
+                    servers.last().unwrap().config.id.clone()
+                }
+            };
+            self.store.save(&servers);
+            id
+        };
+        self.emit();
+        Ok(id)
+    }
+
+    pub fn remove(&self, id: &str) {
+        {
+            let mut servers = self.store.servers.lock().unwrap();
+            servers.retain(|s| s.config.id != id);
+            self.store.save(&servers);
+        }
+        self.emit();
+    }
+
+    /// Перечитывает `servers.json`: его могло поменять окно, пока панель открыта.
+    /// Состояние уже известных серверов сохраняется.
+    pub fn reload(&self) {
+        let fresh = Store::load(self.store.path.clone()).list();
+        {
+            let mut servers = self.store.servers.lock().unwrap();
+            let mut next = Vec::with_capacity(fresh.len());
+            for f in fresh {
+                match servers.iter().position(|s| s.config.id == f.config.id && s.config.target == f.config.target) {
+                    Some(i) => {
+                        let mut s = servers.swap_remove(i);
+                        s.config.name = f.config.name;
+                        next.push(s);
+                    }
+                    None => next.push(f),
+                }
+            }
+            *servers = next;
+        }
+        self.emit();
     }
 }
 
-fn poll_all(app: &AppHandle) {
-    let ids: Vec<String> = app.state::<Store>().list().into_iter().map(|s| s.config.id).collect();
-    thread::scope(|scope| {
-        for id in &ids {
-            scope.spawn(move || poll(app, id));
-        }
-    });
-}
-
-pub fn spawn(app: AppHandle) {
-    let path = app.path().app_data_dir().ok().map(|d| d.join("servers.json"));
-    app.manage(Store::load(path));
-    thread::spawn(move || loop {
-        poll_all(&app);
-        thread::sleep(POLL);
-    });
-}
-
-// ---------- Команды для интерфейса ----------
+// ---------- Правка списка ----------
 
 fn clean(s: Option<String>) -> Option<String> {
     s.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
@@ -283,68 +355,6 @@ fn new_id() -> String {
     format!("{nanos:x}")
 }
 
-#[tauri::command]
-pub fn servers_list(app: AppHandle) -> Vec<Server> {
-    app.state::<Store>().list()
-}
-
-/// Добавляет сервер (без `id`) или меняет существующий, и сразу опрашивает его.
-#[tauri::command]
-pub fn server_save(app: AppHandle, id: Option<String>, name: String, target: Target) -> Result<String, String> {
-    let target = validate(target)?;
-    let name = clean(Some(name)).unwrap_or_else(|| target.host.clone());
-    let store = app.state::<Store>();
-    let id = {
-        let mut servers = store.servers.lock().unwrap();
-        let id = match id.and_then(|id| servers.iter().position(|s| s.config.id == id)) {
-            Some(i) => {
-                let s = &mut servers[i];
-                let changed = s.config.target != target;
-                s.config.name = name;
-                s.config.target = target;
-                if changed {
-                    // Новый адрес — начинаем с чистого листа.
-                    *s = Server::new(s.config.clone());
-                }
-                s.config.id.clone()
-            }
-            None => {
-                let config = ServerConfig { id: new_id(), name, target };
-                servers.push(Server::new(config));
-                servers.last().unwrap().config.id.clone()
-            }
-        };
-        store.save(&servers);
-        id
-    };
-    emit(&app);
-    let poll_id = id.clone();
-    thread::spawn(move || poll(&app, &poll_id));
-    Ok(id)
-}
-
-#[tauri::command]
-pub fn server_remove(app: AppHandle, id: String) {
-    let store = app.state::<Store>();
-    {
-        let mut servers = store.servers.lock().unwrap();
-        servers.retain(|s| s.config.id != id);
-        store.save(&servers);
-    }
-    emit(&app);
-}
-
-/// Кнопка «Обновить»: один сервер или все сразу.
-#[tauri::command]
-pub async fn server_refresh(app: AppHandle, id: Option<String>) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || match id {
-        Some(id) => poll(&app, &id),
-        None => poll_all(&app),
-    })
-    .await
-    .map_err(|e| e.to_string())
-}
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SshSetup {
@@ -354,7 +364,6 @@ pub struct SshSetup {
     pub keys: Vec<String>,
 }
 
-#[tauri::command]
 pub fn ssh_setup() -> SshSetup {
     let dir = ssh::home().join(".ssh");
     SshSetup { hosts: ssh::config_hosts(&dir), keys: ssh::keys(&dir) }

@@ -6,7 +6,7 @@ mod netinfo;
 mod servers;
 mod tray;
 
-use tauri::WindowEvent;
+use tauri::{Manager, WindowEvent};
 
 pub fn run() {
     let app = tauri::Builder::default()
@@ -21,11 +21,12 @@ pub fn run() {
             servers::spawn(app.handle().clone());
             Ok(())
         })
-        // Крестик прячет окно, а не закрывает приложение: оно продолжает жить в строке меню.
+        // Крестик закрывает приложение целиком. В строке меню теперь живёт панель
+        // в вырезе (notch/), а окно открывается из неё по кнопке, — держать WebKit
+        // в памяти после закрытия незачем.
         .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                let _ = window.hide();
-                api.prevent_close();
+            if let WindowEvent::CloseRequested { .. } = event {
+                window.app_handle().exit(0);
             }
         })
         .invoke_handler(tauri::generate_handler![

@@ -3631,6 +3631,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sysmon-core"
+version = "0.1.0"
+dependencies = [
+ "bollard",
+ "futures-util",
+ "serde",
+ "serde_json",
+ "starship-battery",
+ "sysinfo",
+ "tokio",
+]
+
+[[package]]
 name = "system-deps"
 version = "6.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3655,6 +3668,7 @@ dependencies = [
  "serde_json",
  "starship-battery",
  "sysinfo",
+ "sysmon-core",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
