@@ -19,6 +19,18 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Cyclop"
 
+# Источник данных вкладок System Monitor — Rust-помощник из корня репозитория
+# (crates/sysmon-core). Лежит рядом с главным исполняемым файлом, там его ищет
+# `Bundle.main.url(forAuxiliaryExecutable:)`.
+HELPER_CRATE="$ROOT/../crates/sysmon-core"
+echo "==> cargo build sysmon-helper ($CONFIG)"
+if [ "$CONFIG" = "release" ]; then
+    cargo build --release --manifest-path "$HELPER_CRATE/Cargo.toml" --bin sysmon-helper
+else
+    cargo build --manifest-path "$HELPER_CRATE/Cargo.toml" --bin sysmon-helper
+fi
+cp "$HELPER_CRATE/target/$CONFIG/sysmon-helper" "$APP/Contents/MacOS/sysmon-helper"
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -29,7 +41,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleLocalizations</key>
     <array><string>en</string><string>ru</string></array>
     <key>CFBundleDisplayName</key><string>Cyclop</string>
-    <key>CFBundleIdentifier</key><string>com.cyclop.app</string>
+    <key>CFBundleIdentifier</key><string>com.kanokhin.cyclop</string>
     <key>CFBundleExecutable</key><string>Cyclop</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundlePackageType</key><string>APPL</string>
@@ -110,10 +122,13 @@ xattr -cr "$APP"
 # того, кто уже поставил приложение.
 if [ "$IDENTITY" = "-" ]; then
     codesign --force --sign - "$APP/Contents/Resources/libcyclopmedia.dylib"
+    codesign --force --sign - "$APP/Contents/MacOS/sysmon-helper"
     codesign --force --sign - "$APP"
 else
     codesign --force --timestamp --sign "$IDENTITY" \
         "$APP/Contents/Resources/libcyclopmedia.dylib"
+    codesign --force --timestamp --options runtime --sign "$IDENTITY" \
+        "$APP/Contents/MacOS/sysmon-helper"
     codesign --force --timestamp --options runtime \
         --entitlements "$ROOT/Resources/Cyclop.entitlements" \
         --sign "$IDENTITY" "$APP"

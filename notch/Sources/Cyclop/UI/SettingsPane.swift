@@ -44,7 +44,7 @@ struct SettingsPane: View {
                 // there only as long as whoever never uses it can take it off —
                 // and off means quiet too: its background stops with the icon.
                 section(localized("Show in Panel")) {
-                    ForEach(NotchViewModel.Tab.leftRail + NotchViewModel.Tab.rightRail) { tab in
+                    ForEach(NotchViewModel.Tab.monitorRail + NotchViewModel.Tab.leftRail + NotchViewModel.Tab.rightRail) { tab in
                         if tab.canHide {
                             toggleRow(symbol: tab.symbol, title: tab.title, isOn: visibilityBinding(tab))
                         }

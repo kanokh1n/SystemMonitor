@@ -22,6 +22,24 @@
   Работает с Docker Desktop, OrbStack, Colima и Rancher Desktop.
 - Строка меню: загрузка CPU и RAM видна всегда. Крестик прячет окно, а приложение продолжает работать.
 
+## Панель в вырезе (cyclop)
+
+В папке `notch/` лежит [cyclop](https://github.com/akalikbergenov/cyclop) (MIT) — панель, которая выпадает из выреза MacBook при наведении. К его вкладкам (музыка, полка, буфер, календарь, перевод…) добавлен третий рельс с вкладками System Monitor:
+
+- **Система**: CPU с графиком, память и давление, скорость сети, топ‑3 процесса, батарея и аптайм.
+- **Диски**: место на томах, чтение и запись.
+- **Устройства**: заряд Bluetooth‑наушников, мыши, клавиатуры.
+- **Docker**: контейнеры с CPU и памятью, запуск и остановка.
+- **Серверы**: статус VPS из окна System Monitor; упавший сервер виден красной точкой и уведомлением.
+
+Анализ и очистка диска и полный список процессов в панель не помещаются — их открывает кнопка, она запускает окно System Monitor.
+
+Данные даёт `sysmon-helper` (`crates/sysmon-core`) — тот же Rust‑код, что у окна. Панель запускает его дочерним процессом и опрашивает только открытую вкладку; серверы проверяются в фоне раз в минуту. Ненужную вкладку можно убрать в настройках панели, вместе с её опросом.
+
+Скачать: артефакт `Cyclop-SystemMonitor-macOS-arm64` в [Actions](../../actions), распаковать в «Программы» и выполнить `xattr -cr /Applications/Cyclop.app`. Нужна macOS 15+. Собрать самому: `cd notch && ./Scripts/bundle.sh` (нужны Rust и Command Line Tools), приложение появится в `notch/build/Cyclop.app`.
+
+Обновить cyclop из оригинала: `git subtree pull --prefix=notch https://github.com/akalikbergenov/cyclop.git main --squash`.
+
 ## Установка
 
 1. Открой вкладку [Actions](../../actions), выбери последний успешный запуск **Build macOS** и скачай артефакт `SystemMonitor-macOS-arm64`.
@@ -47,13 +65,20 @@ npm run tauri build   # сборка .app и .dmg в src-tauri/target/release/bu
 Приложение на [Tauri 2](https://tauri.app): логика на Rust, интерфейс — обычная веб‑страница на TypeScript, которую показывает системный WebView (поэтому приложение весит ~10 МБ, а не 200 как Electron).
 
 ```
+crates/sysmon-core/src/   сбор данных без интерфейса, общий для окна и панели
+  metrics.rs   метрики через crate sysinfo
+  docker.rs    Docker через crate bollard
+  devices.rs   Bluetooth‑устройства и их заряд через system_profiler и ioreg
+  servers/     серверы по SSH (v3)
+  bin/helper.rs  sysmon-helper: те же данные для панели в вырезе, строками JSON
 src-tauri/src/
   main.rs      точка входа, просто вызывает lib::run()
   lib.rs       сборка приложения: трей, фоновые задачи, команды для фронтенда
-  metrics.rs   сбор метрик через crate sysinfo, событие "metrics" раз в секунду
-  docker.rs    работа с Docker через crate bollard, событие "docker" раз в 3 секунды
+  metrics.rs   событие "metrics" раз в секунду
+  docker.rs    событие "docker" раз в 3 секунды
   netinfo.rs   шлюз, DNS, порты и соединения через route, scutil и lsof, событие "netinfo"
-  devices.rs   Bluetooth‑устройства и их заряд через system_profiler и ioreg, событие "devices" раз в 30 секунд
+  devices.rs   событие "devices" раз в 30 секунд
+  servers.rs   событие "servers" и уведомления
   tray.rs      иконка и меню в строке меню macOS
   disk/        анализ и очистка диска (v2)
     scan.rs      параллельный скан папки (rayon), событие "disk-scan" с прогрессом

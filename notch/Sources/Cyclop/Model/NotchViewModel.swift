@@ -5,6 +5,8 @@ import Combine
 final class NotchViewModel: ObservableObject {
     enum Tab: String, CaseIterable, Identifiable {
         case media, shelf, clipboard, snippets, calendar, translate, currency, notes, teleprompter, utilities, settings
+        // System Monitor: данные из sysmon-helper, см. `MonitorFeed`.
+        case system, disks, devices, docker, servers
         var id: String { rawValue }
 
         var symbol: String {
@@ -20,6 +22,11 @@ final class NotchViewModel: ObservableObject {
             case .teleprompter: return "text.viewfinder"
             case .utilities: return "wrench.and.screwdriver.fill"
             case .settings: return "gearshape.fill"
+            case .system: return "cpu"
+            case .disks: return "internaldrive.fill"
+            case .devices: return "headphones"
+            case .docker: return "shippingbox.fill"
+            case .servers: return "server.rack"
             }
         }
 
@@ -36,6 +43,11 @@ final class NotchViewModel: ObservableObject {
             case .teleprompter: return localized("Teleprompter")
             case .utilities: return localized("Utilities")
             case .settings: return localized("Settings")
+            case .system: return localized("System")
+            case .disks: return localized("Disks")
+            case .devices: return localized("Devices")
+            case .docker: return localized("Docker")
+            case .servers: return localized("Servers")
             }
         }
 
@@ -74,6 +86,12 @@ final class NotchViewModel: ObservableObject {
         /// rest on.
         static let leftRail: [Tab] = [.media, .shelf, .clipboard, .snippets, .calendar, .translate]
         static let rightRail: [Tab] = [.notes, .currency, .teleprompter, .utilities, .settings]
+        /// Третий рельс, слева от остальных, — вкладки System Monitor. Отдельной
+        /// колонкой, а не в хвост существующих: на левом рельсе шесть иконок и он
+        /// полон, а добавь туда пять — каждая сожмётся до 14 pt.
+        static let monitorRail: [Tab] = [.system, .disks, .devices, .docker, .servers]
+
+        var isMonitor: Bool { Self.monitorRail.contains(self) }
     }
 
     /// What every screen's panel adds up to, kept by `NotchController`: this
@@ -109,9 +127,10 @@ final class NotchViewModel: ObservableObject {
     /// The rails as they stand with the switches applied.
     var leftRail: [Tab] { Tab.leftRail.filter(isVisible) }
     var rightRail: [Tab] { Tab.rightRail.filter(isVisible) }
+    var monitorRail: [Tab] { Tab.monitorRail.filter(isVisible) }
 
     /// Where to land when the tab on screen is the one being taken away.
-    private var firstVisibleTab: Tab { leftRail.first ?? rightRail.first ?? .settings }
+    private var firstVisibleTab: Tab { monitorRail.first ?? leftRail.first ?? rightRail.first ?? .settings }
 
     func setVisible(_ target: Tab, _ visible: Bool) {
         guard target.canHide, isVisible(target) != visible else { return }
@@ -151,6 +170,8 @@ final class NotchViewModel: ObservableObject {
             screenshotFolder.resumeIfEnabled()
         case .currency:
             currencies.start()
+        case .system, .disks, .devices, .docker, .servers:
+            updateMonitor()
         case .snippets, .translate, .notes, .teleprompter, .utilities, .settings:
             break
         }
@@ -166,8 +187,27 @@ final class NotchViewModel: ObservableObject {
         // Taking the tab off the rail with the screen still covered would
         // leave the tap installed and no way back to it.
         case .utilities: keyboardLock.unlock()
+        case .system, .disks, .devices, .docker, .servers: updateMonitor()
         case .snippets, .translate, .notes, .teleprompter, .settings: break
         }
+    }
+
+    /// Говорит помощнику System Monitor, что сейчас опрашивать. Вкладки,
+    /// которые смотрят мельком, опрашиваются только пока их видно в открытой
+    /// панели. Серверы — всё время, пока их вкладка на рельсе: о падении надо
+    /// узнать и с закрытой панелью, на то и уведомление.
+    private func updateMonitor() {
+        guard started else {
+            monitor.stop()
+            return
+        }
+        let looking = isPanelActive && isVisible(tab)
+        monitor.setWatch(MonitorFeed.Watch(
+            system: looking && (tab == .system || tab == .disks),
+            devices: looking && tab == .devices,
+            docker: looking && tab == .docker,
+            servers: isVisible(.servers)
+        ))
     }
 
     /// Whether any screen shows more than the bare notch. The stores whose
@@ -178,6 +218,7 @@ final class NotchViewModel: ObservableObject {
         isPanelActive = active
         if isVisible(.media) { media.setActive(active) }
         if isVisible(.calendar) { calendar.setActive(active) }
+        updateMonitor()
     }
 
     private var started = false
@@ -193,8 +234,9 @@ final class NotchViewModel: ObservableObject {
         tab.needsKeyboard || (tab == .teleprompter && teleprompter.script.isEmpty)
     }
 
-    @Published var tab: Tab = .media {
+    @Published var tab: Tab = .system {
         didSet {
+            if tab.isMonitor || oldValue.isMonitor { updateMonitor() }
             // Opening the tab only re-checks the status. The permission prompt
             // is the user's own press on the button inside the pane: this is
             // the one permission Cyclop asks for at all, and it deserves an
@@ -245,6 +287,7 @@ final class NotchViewModel: ObservableObject {
     let snippets: SnippetStore
     let notes: NoteStore
     let teleprompter: TeleprompterStore
+    let monitor = MonitorFeed()
     /// Shared by every pane that shows something worth not showing.
     let privacy = PrivacyMode()
     /// Here rather than in the controller, which now rebuilds a window per
@@ -344,6 +387,7 @@ final class NotchViewModel: ObservableObject {
     func stop() {
         started = false
         for target in Tab.allCases { stopBackground(of: target) }
+        monitor.stop()
         // Whatever was typed makes it to disk even when quitting mid-thought.
         notes.flush()
     }

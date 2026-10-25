@@ -136,6 +136,8 @@ struct NotchContentView: View {
             EmptyView()
         case .settings:
             EmptyView()
+        case .system, .disks, .devices, .docker, .servers:
+            MonitorHeader(tab: vm.tab, feed: vm.monitor)
         }
     }
 
@@ -152,6 +154,9 @@ struct NotchContentView: View {
 
     private var content: some View {
         HStack(spacing: 14) {
+            if !vm.monitorRail.isEmpty {
+                Rail(vm: vm, panel: panel, tabs: vm.monitorRail)
+            }
             Rail(vm: vm, panel: panel, tabs: vm.leftRail)
             panes
             Rail(vm: vm, panel: panel, tabs: vm.rightRail)
@@ -207,6 +212,16 @@ struct NotchContentView: View {
             UtilitiesPane(lock: vm.keyboardLock)
         case .settings:
             SettingsPane(vm: vm, shelf: vm.shelf, screenshots: vm.screenshotFolder)
+        case .system:
+            SystemPane(feed: vm.monitor)
+        case .disks:
+            DisksPane(feed: vm.monitor)
+        case .devices:
+            DevicesPane(feed: vm.monitor)
+        case .docker:
+            DockerPane(feed: vm.monitor)
+        case .servers:
+            ServersPane(feed: vm.monitor)
         }
     }
 }
@@ -275,6 +290,9 @@ private struct Rail: View {
                                 .fill(fill(for: tab))
                         )
                         .foregroundStyle(vm.tab == tab ? Color.white : Theme.tertiary)
+                        .overlay {
+                            if tab == .servers { ServersAlertDot(feed: vm.monitor) }
+                        }
                         .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                         // A render-time transform. Growing the frame instead
                         // would re-lay out the rail on every hover, and layout
