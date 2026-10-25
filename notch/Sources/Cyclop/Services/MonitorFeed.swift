@@ -246,7 +246,13 @@ final class MonitorFeed: ObservableObject {
     /// анализ и очистка диска, полный список процессов.
     func openWindow() {
         let workspace = NSWorkspace.shared
-        guard let url = workspace.urlForApplication(withBundleIdentifier: "com.kanokhin.systemmonitor") else {
+        // Сначала установленная копия: по одному идентификатору macOS может
+        // выбрать отладочную сборку из папки проекта, если она зарегистрирована.
+        let installed = [
+            FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications/System Monitor.app"),
+            URL(fileURLWithPath: "/Applications/System Monitor.app"),
+        ].first { FileManager.default.fileExists(atPath: $0.path) }
+        guard let url = installed ?? workspace.urlForApplication(withBundleIdentifier: "com.kanokhin.systemmonitor") else {
             show(localized("System Monitor is not installed"))
             return
         }
