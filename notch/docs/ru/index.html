@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cyclop — приложение для чёлки MacBook, бесплатно и с открытым кодом</title>
+<meta name="description" content="Чёлка MacBook как рабочий инструмент: плеер, полка для файлов, буфер обмена, заготовки, календарь и офлайн-перевод. Нативно на SwiftUI, без зависимостей и без разрешений. Бесплатно, MIT.">
+<link rel="canonical" href="https://akalikbergenov.github.io/cyclop/ru/">
+<link rel="alternate" hreflang="en" href="https://akalikbergenov.github.io/cyclop/">
+<link rel="alternate" hreflang="ru" href="https://akalikbergenov.github.io/cyclop/ru/">
+<link rel="alternate" hreflang="x-default" href="https://akalikbergenov.github.io/cyclop/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Cyclop">
+<meta property="og:title" content="Cyclop — приложение для чёлки MacBook">
+<meta property="og:description" content="Чёлка MacBook как рабочий инструмент: плеер, полка, буфер обмена, календарь и офлайн-перевод. Нативно, 2,1 МБ, без зависимостей и разрешений.">
+<meta property="og:url" content="https://akalikbergenov.github.io/cyclop/ru/">
+<meta property="og:image" content="https://akalikbergenov.github.io/cyclop/panel.png">
+<meta property="og:image:width" content="1400">
+<meta property="og:image:height" content="504">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:locale:alternate" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Cyclop — приложение для чёлки MacBook">
+<meta name="twitter:description" content="Плеер, полка, буфер обмена, календарь и офлайн-перевод прямо в чёлке. Бесплатно, открытый код.">
+<meta name="twitter:image" content="https://akalikbergenov.github.io/cyclop/panel.png">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23111'/><rect x='26' y='18' width='48' height='16' rx='7' fill='%23fff'/><circle cx='50' cy='62' r='13' fill='%23fff'/></svg>">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "inLanguage": "ru",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Работает ли Cyclop на маке без чёлки?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Да. На маке без физического выреза Cyclop рисует синтетическую чёлку ровно в высоту меню-бара и ведёт себя так же. На внешних мониторах тоже работает." }
+    },
+    {
+      "@type": "Question",
+      "name": "Какие разрешения нужны Cyclop?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Ни одного, пока не откроете вкладку «Календарь», и это разрешение запрашивается явным нажатием кнопки, а не при запуске. Автоматизация, Универсальный доступ и Запись экрана не запрашиваются вообще." }
+    },
+    {
+      "@type": "Question",
+      "name": "Cyclop бесплатный?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Да, бесплатный и с открытым кодом под лицензией MIT. Нет подписки, платной версии, рекламы и сбора данных." }
+    },
+    {
+      "@type": "Question",
+      "name": "Какие плееры поддерживаются?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Любой источник, который видит сама macOS: Apple Music, Spotify, а также видео во вкладке браузера, включая YouTube. В браузере ничего настраивать не нужно." }
+    },
+    {
+      "@type": "Question",
+      "name": "Почему macOS пишет, что приложение не проверено?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Образ подписан ad-hoc, без Apple Developer ID, и не нотаризован. Достаточно один раз разрешить его в Системных настройках, в разделе «Конфиденциальность и безопасность»." }
+    }
+  ]
+}
+</script>
+
+<style>
+:root{--bg:#000;--card:rgba(255,255,255,.05);--ink:#fff;--dim:rgba(255,255,255,.55);--line:rgba(255,255,255,.12);--code:rgba(255,255,255,.06)}
+@media (prefers-color-scheme:light){:root{--bg:#fff;--card:rgba(0,0,0,.03);--ink:#0a0a0a;--dim:rgba(0,0,0,.52);--line:rgba(0,0,0,.13);--code:rgba(0,0,0,.05)}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:0 22px 90px}
+h1,h2,h3{line-height:1.2;letter-spacing:-.02em;margin:0}
+a{color:var(--ink);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:var(--line)}a:hover{text-decoration-color:var(--ink)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code);padding:.12em .4em;border-radius:5px;font-size:.86em}
+nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0;font-size:14px}
+nav a{color:var(--dim);text-decoration:none;margin-left:16px}
+nav a:hover{color:var(--ink)}
+nav .brand{font-weight:700;color:var(--ink);letter-spacing:-.02em;font-size:17px}
+header{padding:36px 0 30px}
+h1{font-size:clamp(30px,5.6vw,50px);font-weight:700;margin-bottom:16px}
+.tagline{font-size:20px;color:var(--dim);max-width:56ch;margin:0 0 26px}
+.cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.btn{display:inline-block;background:var(--ink);color:var(--bg);text-decoration:none;font-weight:600;padding:12px 22px;border-radius:10px;font-size:16px}.btn:hover{opacity:.85}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}.btn.ghost:hover{border-color:var(--ink);opacity:1}
+.meta{font-size:14px;color:var(--dim);margin:0}
+.shot{margin:34px 0;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#000}
+.shot img{display:block;width:100%;height:auto}
+figcaption{font-size:14px;color:var(--dim);margin-top:10px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:30px 0}
+.fact{background:var(--card);padding:16px}
+.fact b{display:block;font-size:22px;font-weight:680;letter-spacing:-.02em}
+.fact span{font-size:12.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+section{margin:52px 0}
+h2{font-size:27px;margin-bottom:8px;font-weight:680}
+.lede{color:var(--dim);margin:0 0 20px;max-width:62ch}
+.tabs{display:grid;gap:12px}
+.tab{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 19px}
+.tab h3{font-size:17px;margin-bottom:5px}
+.tab p{margin:0;color:var(--dim);font-size:15.5px}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card);margin:20px 0}
+table{border-collapse:collapse;width:100%;font-size:15px;min-width:460px}
+th,td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);font-weight:650;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 19px;margin-bottom:10px}
+summary{font-weight:640;cursor:pointer;font-size:16.5px}
+details p{margin:10px 0 0;color:var(--dim);font-size:15.5px}
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:14px}
+ol{padding-left:22px}ol li{margin:8px 0;color:var(--dim)}ol li b{color:var(--ink)}
+footer{border-top:1px solid var(--line);padding-top:24px;margin-top:60px;font-size:14px;color:var(--dim)}
+footer a{color:var(--dim)}
+@media(max-width:600px){.wrap{padding:0 16px 60px}body{font-size:16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav>
+  <span class="brand">Cyclop</span>
+  <span>
+    <a href="#features">Возможности</a>
+    <a href="#install">Установка</a>
+    <a href="#faq">Вопросы</a>
+    <a href="https://github.com/akalikbergenov/cyclop">GitHub</a>
+    <a href="../" hreflang="en">English</a>
+  </span>
+</nav>
+
+<header>
+  <h1>Чёлка MacBook как рабочий инструмент</h1>
+  <p class="tagline">Cyclop — бесплатное приложение для чёлки с открытым кодом. В покое его не видно;
+  при наведении оно раскрывается в панель с плеером, полкой для файлов, историей буфера обмена,
+  заготовками, ближайшей встречей и офлайн-переводчиком.</p>
+  <div class="cta">
+    <a class="btn" href="https://github.com/akalikbergenov/cyclop/releases/latest">Скачать для macOS</a>
+    <a class="btn ghost" href="https://github.com/akalikbergenov/cyclop">Исходники на GitHub</a>
+  </div>
+  <p class="meta">macOS 15 или новее · Apple silicon и Intel · лицензия MIT · без подписки, аккаунта и телеметрии</p>
+</header>
+
+<figure class="shot">
+  <img src="../panel.png" width="1400" height="504" alt="Панель Cyclop, раскрытая под чёлкой MacBook: обложка, ползунок трека и рельс вкладок" loading="eager">
+</figure>
+<figcaption>Трек на снимке играет во вкладке браузера. Cyclop читает его из самой macOS —
+без разрешений и без настроек в браузере.</figcaption>
+
+<div class="facts">
+  <div class="fact"><b>2,1 МБ</b><span>бандл</span></div>
+  <div class="fact"><b>0,0 %</b><span>CPU в покое</span></div>
+  <div class="fact"><b>≈40 МБ</b><span>память</span></div>
+  <div class="fact"><b>0</b><span>зависимостей</span></div>
+  <div class="fact"><b>0</b><span>разрешений*</span></div>
+  <div class="fact"><b>MIT</b><span>лицензия</span></div>
+</div>
+
+<section id="features">
+  <h2>Что живёт в чёлке</h2>
+  <p class="lede">Восемь вкладок. Каждая работает, только пока панель открыта — фон не крутится
+  ради вкладки, на которую никто не смотрит.</p>
+
+  <div class="tabs">
+    <div class="tab"><h3>Музыка</h3><p>Обложка, трек, исполнитель и ползунок, который правда
+      перематывает. Источник — что угодно, что видит сама macOS: Apple Music, Spotify или ролик
+      во вкладке браузера. В браузере настраивать нечего.</p></div>
+    <div class="tab"><h3>Полка</h3><p>Перетащите файлы в чёлку — они там подождут. Вытащите
+      карточку — файл уедет туда, куда бросили. ⌘-клик выделяет несколько и тащит их группой.
+      Снимок экрана, скопированный в буфер, тоже попадает сюда — в том числе сделанный на
+      айфоне.</p></div>
+    <div class="tab"><h3>Буфер обмена</h3><p>Последние 40 копирований. Клик возвращает запись
+      в буфер.</p></div>
+    <div class="tab"><h3>Заготовки</h3><p>Список того, что надоело набирать заново: адрес, телефон,
+      почта. Тот же список — обычный JSON-файл, который можно править любым редактором.</p></div>
+    <div class="tab"><h3>Календарь</h3><p>Ближайшая встреча на неделю вперёд, отсчёт до начала и
+      кнопка подключения — Zoom, Meet, Teams и другие. У пересекающихся встреч своя кнопка
+      у каждой.</p></div>
+    <div class="tab"><h3>Перевод</h3><p>Слева набираете, справа появляется перевод — офлайн,
+      средствами самой macOS, без сервиса и аккаунта. Английский в русский и обратно; направление
+      берётся из того, какими буквами написан текст.</p></div>
+    <div class="tab"><h3>Телесуфлёр</h3><p>Сценарий ползёт под камерой со скоростью, которую вы
+      задаёте. Чёлка — единственное место на экране, которому телесуфлёр подходит: глаза остаются
+      на объективе, а не уходят в окно ниже.</p></div>
+    <div class="tab"><h3>Заметки</h3><p>Черновик под рукой. Наведение приходит уже с кареткой,
+      пустые заметки убираются сами.</p></div>
+  </div>
+</section>
+
+<section id="different">
+  <h2>Чем отличается</h2>
+  <p class="lede">Приложений для чёлки много. Вот то, чем меряется это, — и всё проверяется
+  в исходниках.</p>
+  <div class="scroll">
+  <table>
+    <tr><th>Ноль зависимостей</th><td>Только Swift, SwiftUI и AppKit. Ни менеджера пакетов, ни
+      вложенных фреймворков. Всё приложение — 5800 строк, которые читаются за вечер.</td></tr>
+    <tr><th>Ноль разрешений</th><td>Ни Автоматизации, ни Универсального доступа, ни Записи экрана.
+      Доступ к календарю — единственное, что запрашивается вообще, нужен одной вкладке, и системный
+      диалог показывается по явному нажатию кнопки, а не при запуске.</td></tr>
+    <tr><th>Любой источник звука</th><td>Now Playing читается из самой macOS, поэтому ролик во
+      вкладке работает так же, как плеер, — без расширений и коннекторов под каждое приложение.</td></tr>
+    <tr><th>Перевод офлайн</th><td>Перевод считается на устройстве, средствами macOS. Без ключа,
+      без аккаунта, ничего не уходит с машины.</td></tr>
+    <tr><th>Ничего не собирается</th><td>Ни телеметрии, ни аналитики, ни отчётов о сбоях.
+      Единственный исходящий запрос во всём приложении — необязательный поиск обложки для трека
+      из Spotify.</td></tr>
+    <tr><th>Правда маленькое</th><td>2,1 МБ на диске, около 40 МБ памяти, 0,0 % процессора, пока
+      панель закрыта.</td></tr>
+  </table>
+  </div>
+</section>
+
+<section id="install">
+  <h2>Установка</h2>
+  <ol>
+    <li><b>Скачайте</b> свежий <code>.dmg</code> со
+      <a href="https://github.com/akalikbergenov/cyclop/releases/latest">страницы релизов</a>,
+      откройте образ и перетащите Cyclop в «Программы».</li>
+    <li><b>Первый запуск не сработает</b> — macOS скажет, что приложение не проверено. Так и должно
+      быть: образ подписан ad-hoc, без Apple Developer ID, и не нотаризован.</li>
+    <li><b>Разрешите один раз</b> в Системных настройках → «Конфиденциальность и безопасность» →
+      «Всё равно открыть». Дальше открывается обычно, и обновления не спросят снова.</li>
+    <li><b>Или соберите сами</b> — это одна команда, и проект Xcode для этого не нужен:</li>
+  </ol>
+  <pre><code>git clone https://github.com/akalikbergenov/cyclop.git
+cd cyclop &amp;&amp; ./Scripts/bundle.sh release</code></pre>
+</section>
+
+<section id="faq">
+  <h2>Вопросы</h2>
+  <details open><summary>Работает ли на маке без чёлки?</summary>
+    <p>Да. Там, где физического выреза нет, Cyclop рисует синтетическую чёлку ровно в высоту
+    меню-бара и ведёт себя так же. На внешних мониторах тоже работает.</p></details>
+  <details><summary>Какие разрешения нужны?</summary>
+    <p>Ни одного, пока не откроете «Календарь», и это разрешение запрашивается нажатием кнопки на
+    экране, который объясняет зачем, — не при запуске и не при открытии вкладки. Автоматизация,
+    Универсальный доступ и Запись экрана не запрашиваются вообще.</p>
+    <p>*Единственное исключение: файл, положенный на полку из «Загрузок», «Документов» или
+    с «Рабочего стола», — про него macOS спросит отдельно и только в момент открытия полки.</p></details>
+  <details><summary>Это бесплатно? Есть платная версия?</summary>
+    <p>Бесплатно, под лицензией MIT, платной версии нет. Ни подписки, ни рекламы, ни аккаунтов,
+    и ничего не собирается.</p></details>
+  <details><summary>Какими плеерами управляет?</summary>
+    <p>Любыми, которые видит сама macOS. Apple Music и Spotify работают, ролик во вкладке браузера
+    тоже, включая YouTube. В браузер ничего ставить не нужно.</p></details>
+  <details><summary>Что-нибудь уходит в сеть?</summary>
+    <p>Ни телеметрии, ни аналитики. Единственный исходящий запрос — необязательный поиск обложки
+    для трека из Spotify. Буфер, файлы, заметки, заготовки и сценарии остаются на машине.</p></details>
+  <details><summary>Почему macOS пишет, что приложение не проверено?</summary>
+    <p>Потому что образ подписан ad-hoc, без Apple Developer ID, и не нотаризован. Достаточно
+    разрешить один раз в Системных настройках. Исходники открыты, если удобнее собрать самому.</p></details>
+  <details><summary>Сколько ест памяти и батареи?</summary>
+    <p>Около 40 МБ плюс хелпер на 14 МБ и 0,0 % процессора, пока панель закрыта. Каждая вкладка
+    работает, только пока на неё смотрят.</p></details>
+  <details><summary>Какие версии macOS поддерживаются?</summary>
+    <p>macOS 15 и новее, на Apple silicon и на Intel. Нижняя граница взялась от фреймворка перевода,
+    на котором работает вкладка «Перевод».</p></details>
+</section>
+
+<footer>
+  <p>Cyclop — свободное ПО под <a href="https://github.com/akalikbergenov/cyclop/blob/main/LICENSE">лицензией MIT</a>.
+  Сделал <a href="https://github.com/akalikbergenov">Адиль Каликбергенов</a>.
+  С Apple не связано; MacBook и macOS — товарные знаки Apple Inc.</p>
+  <p><a href="../" hreflang="en">English version</a> · <a href="https://github.com/akalikbergenov/cyclop/releases">Все релизы</a></p>
+</footer>
+
+</div>
+</body>
+</html>

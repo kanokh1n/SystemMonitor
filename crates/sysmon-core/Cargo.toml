@@ -1,0 +1,22 @@
+[package]
+name = "sysmon-core"
+version = "0.1.0"
+description = "Сбор данных System Monitor без интерфейса: метрики, Bluetooth-устройства, Docker и серверы по SSH. Используется окном Tauri и помощником для панели в вырезе."
+authors = ["Kanokhin"]
+edition = "2021"
+
+[lib]
+name = "sysmon_core"
+
+[[bin]]
+name = "sysmon-helper"
+path = "src/bin/helper.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sysinfo = "0.39"
+bollard = "0.21"
+starship-battery = "0.12"
+futures-util = "0.3"
+tokio = { version = "1", features = ["rt", "time"] }
