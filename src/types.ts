@@ -1,4 +1,4 @@
-// Типы данных, которые присылает Rust (src-tauri/src/metrics.rs, docker.rs и devices.rs).
+// Типы данных, которые присылает Rust (src-tauri/src/metrics.rs, docker.rs, devices.rs и servers/).
 
 export interface Snapshot {
   cpu: {
@@ -191,4 +191,55 @@ export interface DockerUsage {
 export interface TrashReport {
   trashed: string[];
   failed: [string, string][];
+}
+
+// ---------- Серверы по SSH (v3) ----------
+
+export interface ServerTarget {
+  host: string;
+  user: string | null;
+  port: number | null;
+  identity: string | null;
+}
+
+export interface Server extends ServerTarget {
+  id: string;
+  name: string;
+  status: "checking" | "online" | "down" | "error" | "noNetwork";
+  error: string | null;
+  failures: number;
+  stats: ServerStats | null;
+  latencyMs: number | null;
+  lastOk: number | null;
+  downSince: number | null;
+  busy: boolean;
+}
+
+export interface ServerStats {
+  hostname: string;
+  os: string;
+  kernel: string;
+  uptimeSecs: number;
+  cores: number;
+  loadAvg: [number, number, number];
+  cpuPercent: number | null;
+  memory: { total: number; available: number; swapTotal: number; swapUsed: number };
+  disks: { mountPoint: string; fileSystem: string; total: number; used: number; available: number }[];
+  docker: {
+    installed: boolean;
+    error: string | null;
+    containers: {
+      name: string;
+      image: string;
+      state: string;
+      status: string;
+      cpuPercent: number | null;
+      memoryUsed: number | null;
+    }[];
+  };
+}
+
+export interface SshSetup {
+  hosts: { alias: string; hostName: string | null; user: string | null; port: number | null }[];
+  keys: string[];
 }

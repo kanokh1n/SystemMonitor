@@ -46,7 +46,12 @@ pub fn update(app: &AppHandle, snapshot: &Snapshot) {
     let Some(tray) = app.tray_by_id(TRAY_ID) else { return };
     let mem = &snapshot.memory;
     let ram = if mem.total > 0 { mem.used as f64 / mem.total as f64 * 100.0 } else { 0.0 };
-    let title = format!("CPU {:.0}%  RAM {:.0}%", snapshot.cpu.usage, ram);
+    let mut title = format!("CPU {:.0}%  RAM {:.0}%", snapshot.cpu.usage, ram);
+    // Упавшие серверы видно, даже когда окно закрыто.
+    let down = crate::servers::down_count();
+    if down > 0 {
+        title.push_str(&format!("  ⚠ {down}"));
+    }
     let _ = tray.set_title(Some(title));
 }
 

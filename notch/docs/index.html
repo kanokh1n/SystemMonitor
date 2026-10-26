@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cyclop — free open-source notch app for MacBook</title>
+<meta name="description" content="Turn the MacBook notch into a panel: media controls, file shelf, clipboard history, snippets, calendar and offline translation. Native SwiftUI, zero dependencies, no permissions. Free, MIT.">
+<link rel="canonical" href="https://akalikbergenov.github.io/cyclop/">
+<link rel="alternate" hreflang="en" href="https://akalikbergenov.github.io/cyclop/">
+<link rel="alternate" hreflang="ru" href="https://akalikbergenov.github.io/cyclop/ru/">
+<link rel="alternate" hreflang="x-default" href="https://akalikbergenov.github.io/cyclop/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Cyclop">
+<meta property="og:title" content="Cyclop — free open-source notch app for MacBook">
+<meta property="og:description" content="The MacBook notch as a working tool: player, file shelf, clipboard, snippets, calendar and offline translation. Native, 2.1 MB, no dependencies, no permissions.">
+<meta property="og:url" content="https://akalikbergenov.github.io/cyclop/">
+<meta property="og:image" content="https://akalikbergenov.github.io/cyclop/panel.png">
+<meta property="og:image:width" content="1400">
+<meta property="og:image:height" content="504">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="ru_RU">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Cyclop — free open-source notch app for MacBook">
+<meta name="twitter:description" content="The MacBook notch as a working tool. Native SwiftUI, zero dependencies, no permissions. Free, MIT.">
+<meta name="twitter:image" content="https://akalikbergenov.github.io/cyclop/panel.png">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23111'/><rect x='26' y='18' width='48' height='16' rx='7' fill='%23fff'/><circle cx='50' cy='62' r='13' fill='%23fff'/></svg>">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://akalikbergenov.github.io/cyclop/#app",
+      "name": "Cyclop",
+      "applicationCategory": "UtilitiesApplication",
+      "applicationSubCategory": "Menu bar utility",
+      "operatingSystem": "macOS 15 or newer",
+      "description": "A macOS utility that turns the MacBook notch into a panel with media controls, a file shelf, clipboard history, snippets, a calendar and offline translation. Native SwiftUI and AppKit, no third-party dependencies.",
+      "url": "https://akalikbergenov.github.io/cyclop/",
+      "downloadUrl": "https://github.com/akalikbergenov/cyclop/releases/latest",
+      "installUrl": "https://github.com/akalikbergenov/cyclop/releases/latest",
+      "softwareVersion": "0.8.3",
+      "fileSize": "3.7 MB",
+      "license": "https://opensource.org/licenses/MIT",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "programmingLanguage": "Swift",
+      "codeRepository": "https://github.com/akalikbergenov/cyclop",
+      "featureList": [
+        "Now Playing controls for any source macOS can see, including browser tabs",
+        "File shelf with drag and drop",
+        "Clipboard history",
+        "Snippets",
+        "Next meeting with a one-click join for Zoom, Meet and Teams",
+        "Offline translation between English and Russian",
+        "Teleprompter that scrolls a script under the camera",
+        "Scratch notes"
+      ],
+      "author": { "@type": "Person", "name": "Adil Kalikbergenov", "url": "https://github.com/akalikbergenov" }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://akalikbergenov.github.io/cyclop/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Does Cyclop work on a MacBook without a notch?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. On a Mac without a physical cutout Cyclop draws a synthetic notch of the same height as the menu bar and behaves the same way. External displays work too." }
+        },
+        {
+          "@type": "Question",
+          "name": "What permissions does Cyclop need?",
+          "acceptedAnswer": { "@type": "Answer", "text": "None until you open the Calendar tab, and that one is requested by an explicit button press rather than at launch. Cyclop asks for no Automation, no Accessibility and no Screen Recording. A file placed on the shelf from Downloads, Documents or the Desktop is the one thing macOS asks about separately, and only when the shelf is opened." }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Cyclop free?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Cyclop is free and open source under the MIT licence. There is no subscription, no paid tier, no ads and no data collection." }
+        },
+        {
+          "@type": "Question",
+          "name": "Which media players does Cyclop support?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Any source macOS itself can see, which includes Apple Music, Spotify, and audio or video playing in a browser tab such as YouTube. Nothing needs to be configured in the browser." }
+        },
+        {
+          "@type": "Question",
+          "name": "Why does macOS say Cyclop cannot be verified on first launch?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The disk image is ad-hoc signed, without an Apple Developer ID, and is not notarised. It has to be allowed once through System Settings, Privacy and Security, after which it opens normally." }
+        },
+        {
+          "@type": "Question",
+          "name": "Does Cyclop send anything over the network?",
+          "acceptedAnswer": { "@type": "Answer", "text": "No telemetry and no analytics. Everything stays on the machine. The only outgoing request is an optional lookup of album artwork for Spotify tracks." }
+        },
+        {
+          "@type": "Question",
+          "name": "How much memory and CPU does Cyclop use?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Around 40 MB plus a 14 MB helper process, and 0.0 percent CPU at rest. The application bundle is 2.1 MB. Tabs run only while the panel is open." }
+        }
+      ]
+    }
+  ]
+}
+</script>
+
+<style>
+:root{--bg:#000;--card:rgba(255,255,255,.05);--ink:#fff;--dim:rgba(255,255,255,.55);--line:rgba(255,255,255,.12);--code:rgba(255,255,255,.06)}
+@media (prefers-color-scheme:light){:root{--bg:#fff;--card:rgba(0,0,0,.03);--ink:#0a0a0a;--dim:rgba(0,0,0,.52);--line:rgba(0,0,0,.13);--code:rgba(0,0,0,.05)}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:0 22px 90px}
+h1,h2,h3{line-height:1.2;letter-spacing:-.02em;margin:0}
+a{color:var(--ink);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:var(--line)}a:hover{text-decoration-color:var(--ink)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code);padding:.12em .4em;border-radius:5px;font-size:.86em}
+
+nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0;font-size:14px}
+nav a{color:var(--dim);text-decoration:none;margin-left:16px}
+nav a:hover{color:var(--ink)}
+nav .brand{font-weight:700;color:var(--ink);letter-spacing:-.02em;font-size:17px}
+
+header{padding:36px 0 30px}
+h1{font-size:clamp(32px,6vw,52px);font-weight:700;margin-bottom:16px}
+.tagline{font-size:20px;color:var(--dim);max-width:56ch;margin:0 0 26px}
+.cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.btn{display:inline-block;background:var(--ink);color:var(--bg);text-decoration:none;font-weight:600;padding:12px 22px;border-radius:10px;font-size:16px}.btn:hover{opacity:.85}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}.btn.ghost:hover{border-color:var(--ink);opacity:1}
+.meta{font-size:14px;color:var(--dim);margin:0}
+
+.shot{margin:34px 0;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#000}
+.shot img{display:block;width:100%;height:auto}
+figcaption{font-size:14px;color:var(--dim);margin-top:10px}
+
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line);
+ border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:30px 0}
+.fact{background:var(--card);padding:16px}
+.fact b{display:block;font-size:22px;font-weight:680;letter-spacing:-.02em}
+.fact span{font-size:12.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+
+section{margin:52px 0}
+h2{font-size:27px;margin-bottom:8px;font-weight:680}
+.lede{color:var(--dim);margin:0 0 20px;max-width:62ch}
+
+.tabs{display:grid;gap:12px}
+.tab{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 19px}
+.tab h3{font-size:17px;margin-bottom:5px}
+.tab p{margin:0;color:var(--dim);font-size:15.5px}
+
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card);margin:20px 0}
+table{border-collapse:collapse;width:100%;font-size:15px;min-width:460px}
+th,td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);font-weight:650;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 19px;margin-bottom:10px}
+summary{font-weight:640;cursor:pointer;font-size:16.5px}
+details p{margin:10px 0 0;color:var(--dim);font-size:15.5px}
+details p:last-child{margin-bottom:0}
+
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:14px}
+ol{padding-left:22px}ol li{margin:8px 0;color:var(--dim)}ol li b{color:var(--ink)}
+
+footer{border-top:1px solid var(--line);padding-top:24px;margin-top:60px;font-size:14px;color:var(--dim)}
+footer a{color:var(--dim)}
+@media(max-width:600px){.wrap{padding:0 16px 60px}body{font-size:16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav>
+  <span class="brand">Cyclop</span>
+  <span>
+    <a href="#features">Features</a>
+    <a href="#install">Install</a>
+    <a href="#faq">FAQ</a>
+    <a href="https://github.com/akalikbergenov/cyclop">GitHub</a>
+    <a href="ru/" hreflang="ru">Русский</a>
+  </span>
+</nav>
+
+<header>
+  <h1>The MacBook notch as a working tool</h1>
+  <p class="tagline">Cyclop is a free, open-source notch app for macOS. Invisible at rest; on hover it
+  unfolds into a panel with a player, a file shelf, clipboard history, snippets, your next meeting
+  and an offline translator.</p>
+  <div class="cta">
+    <a class="btn" href="https://github.com/akalikbergenov/cyclop/releases/latest">Download for macOS</a>
+    <a class="btn ghost" href="https://github.com/akalikbergenov/cyclop">Source on GitHub</a>
+  </div>
+  <p class="meta">macOS 15 or newer · Apple silicon and Intel · MIT licence · no subscription, no account, no telemetry</p>
+</header>
+
+<figure class="shot">
+  <img src="panel.png" width="1400" height="504" alt="The Cyclop panel open under the MacBook notch, showing album artwork, a track scrubber and the tab rail" loading="eager">
+</figure>
+<figcaption>The track in the screenshot is playing in a browser tab. Cyclop reads it from macOS itself,
+with no permissions and nothing configured in the browser.</figcaption>
+
+<div class="facts">
+  <div class="fact"><b>2.1 MB</b><span>bundle</span></div>
+  <div class="fact"><b>0.0 %</b><span>CPU at rest</span></div>
+  <div class="fact"><b>≈40 MB</b><span>memory</span></div>
+  <div class="fact"><b>0</b><span>dependencies</span></div>
+  <div class="fact"><b>0</b><span>permissions*</span></div>
+  <div class="fact"><b>MIT</b><span>licence</span></div>
+</div>
+
+<section id="features">
+  <h2>What Cyclop puts in the notch</h2>
+  <p class="lede">Eight tabs. Each one runs only while the panel is open — nothing keeps a timer
+  going for a tab nobody is looking at.</p>
+
+  <div class="tabs">
+    <div class="tab"><h3>Music</h3><p>Artwork, track, artist and a scrubber that actually seeks.
+      The source is anything macOS itself can see: Apple Music, Spotify, or a video in a browser
+      tab. Nothing to configure in the browser.</p></div>
+    <div class="tab"><h3>Shelf</h3><p>Drag files into the notch and they wait there. Drag a card out
+      and the file goes wherever it is dropped. ⌘-click selects several and drags them as a group.
+      A screenshot copied to the clipboard is saved and lands here too — including one taken on an
+      iPhone.</p></div>
+    <div class="tab"><h3>Clipboard</h3><p>The last 40 copies. A click puts an entry back on the
+      clipboard.</p></div>
+    <div class="tab"><h3>Snippets</h3><p>A hand-kept list of what you are tired of retyping: an
+      address, a phone number, an email. The same list is a plain JSON file you can edit in any
+      editor.</p></div>
+    <div class="tab"><h3>Calendar</h3><p>The next meeting a week ahead, how long until it starts,
+      and a button that joins the call — Zoom, Meet, Teams and others. Meetings that overlap each
+      get their own join button.</p></div>
+    <div class="tab"><h3>Translate</h3><p>Type on the left, the translation appears on the right —
+      offline, using macOS's own translation, with no service and no account. English to Russian
+      and back; the direction is taken from the script the text is written in.</p></div>
+    <div class="tab"><h3>Teleprompter</h3><p>A script that scrolls under the camera at a speed you
+      set. The notch is the one place on the screen a teleprompter belongs: the eyes stay on the
+      lens instead of travelling to a window below it.</p></div>
+    <div class="tab"><h3>Notes</h3><p>Scratch space. Hovering lands with the caret ready; blank
+      notes sweep themselves out.</p></div>
+  </div>
+</section>
+
+<section id="different">
+  <h2>How Cyclop is different</h2>
+  <p class="lede">The notch category is crowded. These are the things Cyclop is measured on, all of
+  them checkable in the source.</p>
+
+  <div class="scroll">
+  <table>
+    <tr><th>Zero dependencies</th><td>Nothing but Swift, SwiftUI and AppKit. No package manager, no
+      vendored frameworks. The whole thing is 5 800 lines you can read in an afternoon.</td></tr>
+    <tr><th>No permissions</th><td>No Automation, no Accessibility, no Screen Recording. Calendar
+      access is the only permission Cyclop ever requests, it belongs to one tab, and the system
+      dialog appears on an explicit button press rather than at launch.</td></tr>
+    <tr><th>Any media source</th><td>Now Playing is read from macOS itself, so a video in a browser
+      tab works exactly like a music player — no browser extension, no per-app connector.</td></tr>
+    <tr><th>Offline translation</th><td>Translation runs on the device through macOS's own
+      framework. No API key, no account, nothing leaves the machine.</td></tr>
+    <tr><th>Nothing collected</th><td>No telemetry, no analytics, no crash reporting. The single
+      outgoing request in the whole app is an optional artwork lookup for Spotify tracks.</td></tr>
+    <tr><th>Actually small</th><td>2.1 MB on disk, around 40 MB of memory, 0.0 % CPU while the panel
+      is closed.</td></tr>
+  </table>
+  </div>
+</section>
+
+<section id="install">
+  <h2>Install</h2>
+  <ol>
+    <li><b>Download</b> the latest <code>.dmg</code> from
+      <a href="https://github.com/akalikbergenov/cyclop/releases/latest">the releases page</a>,
+      open it and drag Cyclop into Applications.</li>
+    <li><b>The first launch will not work</b> — macOS will say the app cannot be verified. That is
+      expected: the image is ad-hoc signed, without an Apple Developer ID, and is not notarised.</li>
+    <li><b>Allow it once</b> in System Settings → Privacy &amp; Security → “Open Anyway”. After that
+      it opens normally, and updates do not ask again.</li>
+    <li><b>Or build it yourself</b> — the whole thing is one command, and no Xcode project is
+      involved:</li>
+  </ol>
+  <pre><code>git clone https://github.com/akalikbergenov/cyclop.git
+cd cyclop &amp;&amp; ./Scripts/bundle.sh release</code></pre>
+</section>
+
+<section id="faq">
+  <h2>Questions</h2>
+
+  <details open><summary>Does Cyclop work on a MacBook without a notch?</summary>
+    <p>Yes. On a Mac without a physical cutout Cyclop draws a synthetic notch exactly as tall as the
+    menu bar and behaves the same way. It works on external displays too.</p></details>
+
+  <details><summary>What permissions does Cyclop need?</summary>
+    <p>None until you open the Calendar tab, and that one is asked for by an explicit button press
+    on a screen that explains why — not at launch, and not when the tab opens. Cyclop requests no
+    Automation, no Accessibility and no Screen Recording.</p>
+    <p>*One exception: a file placed on the shelf from Downloads, Documents or the Desktop is
+    something macOS asks about separately, and only at the moment the shelf is opened.</p></details>
+
+  <details><summary>Is Cyclop free? Is there a paid version?</summary>
+    <p>Free, MIT-licensed, and there is no paid tier. No subscription, no ads, no accounts, and
+    nothing is collected.</p></details>
+
+  <details><summary>Which players does it control?</summary>
+    <p>Anything macOS itself can see. Apple Music and Spotify work, and so does audio or video in a
+    browser tab — YouTube included. Nothing has to be installed in the browser.</p></details>
+
+  <details><summary>Does it send anything anywhere?</summary>
+    <p>No telemetry and no analytics of any kind. The only outgoing request in the whole app is an
+    optional lookup of album artwork for Spotify tracks, and everything else — clipboard, files,
+    notes, snippets, scripts — stays on the machine.</p></details>
+
+  <details><summary>Why does macOS say the app cannot be verified?</summary>
+    <p>Because the disk image is ad-hoc signed, without an Apple Developer ID, and is not notarised.
+    Allowing it once in System Settings → Privacy &amp; Security is enough, and later updates do not
+    ask again. The source is public if you would rather build it yourself.</p></details>
+
+  <details><summary>What does it cost in memory and battery?</summary>
+    <p>About 40 MB plus a 14 MB helper process, and 0.0 % CPU while the panel is closed. Each tab
+    runs only while it is being looked at — the clock behind the calendar and the position ticker
+    behind the player both stop when the panel folds.</p></details>
+
+  <details><summary>Which macOS versions are supported?</summary>
+    <p>macOS 15 and newer, on both Apple silicon and Intel. The floor comes from the translation
+    framework the Translate tab uses.</p></details>
+</section>
+
+<section>
+  <h2>Open source</h2>
+  <p class="lede">Cyclop is built in the open under the MIT licence, and a good part of what is in it
+  came from people who turned up in the first week: measurements from Macs the author does not own,
+  a reverse-engineered fix for macOS 26 media control, and fixes to things nobody else had noticed.
+  Issues and pull requests are welcome.</p>
+  <div class="cta">
+    <a class="btn ghost" href="https://github.com/akalikbergenov/cyclop">Read the source</a>
+    <a class="btn ghost" href="https://github.com/akalikbergenov/cyclop/issues">Report something</a>
+  </div>
+</section>
+
+<footer>
+  <p>Cyclop is free software under the <a href="https://github.com/akalikbergenov/cyclop/blob/main/LICENSE">MIT licence</a>.
+  Built by <a href="https://github.com/akalikbergenov">Adil Kalikbergenov</a>.
+  Not affiliated with Apple. MacBook and macOS are trademarks of Apple Inc.</p>
+  <p><a href="ru/" hreflang="ru">Русская версия</a> · <a href="https://github.com/akalikbergenov/cyclop/releases">All releases</a></p>
+</footer>
+
+</div>
+</body>
+</html>
